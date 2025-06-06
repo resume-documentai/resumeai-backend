@@ -1,7 +1,6 @@
 from typing import Optional
 from fastapi import APIRouter, File, UploadFile, HTTPException, Query, Form
-from fastapi.responses import FileResponse
-from . import file_processing, resume_repository, process_llm
+from app.services import file_processing, resume_repository, process_llm
 import os
 
 resume_router = APIRouter()
@@ -19,7 +18,7 @@ def get_all_resumes(user_id: Optional[str] = Query(None)):
 
 # Endpoint to get a specific resume by user_id and file_id
 @resume_router.post("/file")
-def get_resume(file_id: str = Form(...)):
+def get_resume(file_id: Optional[str] = Form(...)):
 
     try:
         resume_text, resume_feedback = resume_repository.get_resume_by_file_id(file_id)

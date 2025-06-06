@@ -1,8 +1,8 @@
-from typing import List, Dict, Optional
+from typing import Dict, Optional
 from fastapi import APIRouter, HTTPException, Form, Query
 import heapq
 import numpy as np
-from . import resume_repository, process_llm, file_processing
+from app.services import resume_repository, process_llm, file_processing
 from app.core.utils.models import Message, ChatSession
 
 chat_router = APIRouter()
@@ -46,7 +46,7 @@ async def chat(file_id: str = Form(...), message: str = Form(...), model: str = 
             Assistant:
         """
         
-        response = process_llm.process(message, model, prompt)
+        response = process_llm.process(message, model, prompt) or ""
         
         session.messages.append(Message(type="user", text=message))
         session.messages.append(Message(type="bot", text=response))
@@ -62,7 +62,7 @@ async def chat(file_id: str = Form(...), message: str = Form(...), model: str = 
     
      
 @chat_router.get("/start-chat")
-async def start_chat(file_id: Optional[str] = Query(None)):
+async def start_chat(file_id: str = Query(None)):
     if file_id in chat_session:
         session = chat_session[file_id]
     
@@ -88,7 +88,7 @@ async def get_similar_resumes(user_id: str, query: str):
         for doc in user_resumes:
             embedding = np.array(doc["embedding"])
             score = np.dot(query_embedding, embedding) / (np.linalg.norm(query_embedding) * np.linalg.norm(embedding))
-            heapq.heappush(similarties(-score, doc))
+            heapq.heappush(similarties, (-score, doc))
     
 
         return [heapq.heappop(similarties)[1] for _ in range(n)]

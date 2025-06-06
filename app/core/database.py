@@ -1,26 +1,45 @@
-import os
-from dotenv import load_dotenv
+from app.core.config import MONGO_URI
 from pymongo import MongoClient
+from typing import Optional
 
-# Load environment variables
-load_dotenv()
+class Database:
+    _instance = None
 
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/authDB")
-JWT_SECRET = os.getenv("JWT_SECRET", "your_jwt_secret")
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(Database, cls).__new__(cls)
+            cls._instance.__init__()
+        return cls._instance
 
-# Create a MongoDB client
-client = MongoClient(MONGO_URI)
+    def __init__(self):
+        self._client = MongoClient(MONGO_URI)
+        self._db = self._client.get_database("resume_reviewer")
+        self._users_collection = self._db.get_collection("auth_collection")
+        self._resume_collection = self._db.get_collection("resume_collection")
+        
+        # Initialize database if it doesn't exist
+        if "resume_reviewer" not in self._client.list_database_names():
+            self._db.create_collection("auth_collection")
+            self._db.create_collection("resume_collection")
+            print("Database and collections created successfully.")
+        else:
+            print("Database already exists.")
 
-# Get the database and collection
-db = client.get_database("resume_reviewer")
-users_collection = db.get_collection("auth_collection")
-resume_collection = db.get_collection("resume_collection")
+    @property
+    def client(self) -> MongoClient:
+        return self._client
 
-# Ensure the database and collections are created and initialized
-if "resume_reviewer" not in client.list_database_names():
-    # Initialize the database with required collections
-    db.create_collection("auth_collection")
-    db.create_collection("resume_collection")
-    print("Database and collections created successfully.")
-else:
-    print("Database already exists.")
+    @property
+    def db(self):
+        return self._db
+
+    @property
+    def users_collection(self):
+        return self._users_collection
+
+    @property
+    def resume_collection(self):
+        return self._resume_collection
+
+# Create a global instance that can be imported
+mongodb = Database()

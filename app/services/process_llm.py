@@ -1,14 +1,6 @@
 from openai import OpenAI
-import os
 import requests
-from dotenv import load_dotenv
-
-# Load environment variables from a .env file
-load_dotenv()
-
-# Get the LLAMA server URL from environment variables, default to localhost if not set
-LLAMA_SERVER = os.getenv("LLAMA_SERVER", "http://localhost:11434")
-OPEN_API_KEY = os.getenv("OPENAI_API_KEY")
+from app.core.config import LLAMA_SERVER, OPENAI_API_KEY
 
 base_prompt = ("You are a professional resume reviewer. "
         "Analyze the following resume text and provide feedback on the candidate's strengths, weaknesses, "
@@ -29,7 +21,7 @@ def __test_llama_connection():
     return False
 
 # Function to test connection to the OpenAI API
-def __test_openai_connection(client):
+def __test_openai_connection(client: OpenAI):
     try:
         # List available models from OpenAI
         response = client.models.list()
@@ -65,7 +57,7 @@ def __process_with_openai(extracted_text: str, prompt: str):
 
     try:
         # Initialize the OpenAI client
-        client = OpenAI(api_key=OPEN_API_KEY)
+        client = OpenAI(api_key=OPENAI_API_KEY)
 
         if not __test_openai_connection(client):
             return "Error: Unable to connect to llama server."

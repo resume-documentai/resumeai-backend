@@ -1,6 +1,6 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from config_mongo import users_collection
+from app.core.database import mongodb
 from app.core.utils import security as auth_utils
 
 auth_router = APIRouter()
@@ -26,7 +26,7 @@ async def root():
 async def register(user: UserRegister):
     print("hit", user)
     # Check if the email is already registered
-    if users_collection.find_one({"email": user.email}):
+    if mongodb.users_collection.find_one({"email": user.email}):
         raise HTTPException(status_code=400, detail="Email already registered")
     # Hash the user's password
     hashed_password = auth_utils.hash_password(user.password)
@@ -39,7 +39,7 @@ async def register(user: UserRegister):
     }
     
     # Insert the new user into the database
-    users_collection.insert_one(new_user)
+    mongodb.users_collection.insert_one(new_user)
     
     return {"message": "User registered successfully"}
 
@@ -47,7 +47,7 @@ async def register(user: UserRegister):
 @auth_router.post("/login/")
 async def login(user: UserLogin):
     # Find the user in the database
-    db_user = users_collection.find_one({"email": user.email})
+    db_user = mongodb.users_collection.find_one({"email": user.email})
     # Verify the user's password
     if not db_user or not auth_utils.verify_password(user.password, db_user["password"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
