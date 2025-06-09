@@ -10,6 +10,17 @@ chat_session: Dict[str, ChatSession] = {}
 
 @chat_router.post("/")
 async def chat(file_id: str = Form(...), message: str = Form(...), model: str = "openai"):
+    """
+    Chat with a resume.
+    
+    Args:
+        file_id (str): The ID of the resume file.
+        message (str): The message to send to the chat.
+        model (str): The model to use for the chat.
+    
+    Returns:
+        dict: A dictionary containing the response from the chat.
+    """
     try:
         print(chat_session.keys(), file_id)
         if file_id in chat_session:
@@ -63,21 +74,36 @@ async def chat(file_id: str = Form(...), message: str = Form(...), model: str = 
      
 @chat_router.get("/start-chat")
 async def start_chat(file_id: str = Query(None)):
+    """
+    Start a chat session for a given resume file. If the chat session already exists, return the existing session.
+    
+    Args:
+        file_id (str): The ID of the resume file.
+    
+    Returns:
+        list: A list of messages in the chat session.
+    """
     if file_id in chat_session:
-        session = chat_session[file_id]
-    
+        return [msg.__dict__ for msg in chat_session[file_id].messages]
+
     messages, txt, feedback = resume_repository.get_resume_chat_messages(file_id)
-    
     session = ChatSession(messages=messages, resume=txt, feedback=feedback)
-        
     chat_session[file_id] = session
-    print(chat_session.keys(), file_id)
+
     return [msg.__dict__ for msg in session.messages]
-    
-    
     
 @chat_router.get("/similar-resumes")
 async def get_similar_resumes(user_id: str, query: str):
+    """
+    Get similar resumes for a given user and query.
+    
+    Args:
+        user_id (str): The ID of the user.
+        query (str): The query to search for similar resumes.
+    
+    Returns:
+        list: A list of similar resumes.
+    """
     try:
         query_embedding = file_processing.generate_embeddings(query)
         

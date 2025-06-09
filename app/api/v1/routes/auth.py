@@ -8,11 +8,27 @@ auth_router = APIRouter()
 # Root endpoint for the authentication service
 @auth_router.get("/")
 async def root():
+    """
+    Root endpoint for the authentication service.
+    
+    Returns:
+        dict: A dictionary containing a welcome message.
+    """
     return {"message": "Welcome to the authentication service"}
 
 # Endpoint for user registration
 @auth_router.post("/register/")
 async def register(user: UserRegister, db: Database = Depends(Database)):
+    """
+    Register a new user.
+    
+    Args:
+        user (UserRegister): The user to register.
+        db (Database): The database to use for registration.
+    
+    Returns:
+        dict: A dictionary containing a success message.
+    """
     print("hit", user)
     # Check if the email is already registered
     if db.users_collection.find_one({"email": user.email}):
@@ -35,6 +51,16 @@ async def register(user: UserRegister, db: Database = Depends(Database)):
 # Endpoint for user login
 @auth_router.post("/login/")
 async def login(user: UserLogin, db: Database = Depends(Database)):
+    """
+    Login a user.
+    
+    Args:
+        user (UserLogin): The user to login.
+        db (Database): The database to use for login.
+    
+    Returns:
+        dict: A dictionary containing an access token and user information.
+    """
     # Find the user in the database
     db_user = db.users_collection.find_one({"email": user.email})
     # Verify the user's password

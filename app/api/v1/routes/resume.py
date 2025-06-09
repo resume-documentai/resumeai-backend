@@ -8,6 +8,15 @@ resume_router = APIRouter()
 # Endpoint to get all resumes for a specific user
 @resume_router.get("/")
 def get_all_resumes(user_id: Optional[str] = Query(None)):
+    """
+    Get all resumes for a specific user.
+    
+    Args:
+        user_id (str): The ID of the user.
+    
+    Returns:
+        list: A list of resumes.
+    """
     try:
         # Print userId for debugging purposes
         # print(user_id)
@@ -19,7 +28,15 @@ def get_all_resumes(user_id: Optional[str] = Query(None)):
 # Endpoint to get a specific resume by user_id and file_id
 @resume_router.post("/file")
 def get_resume(file_id: Optional[str] = Form(...)):
-
+    """
+    Get a specific resume by user_id and file_id.
+    
+    Args:
+        file_id (str): The ID of the resume file.
+    
+    Returns:
+        dict: A dictionary containing the extracted text and LLM feedback.
+    """
     try:
         resume_text, resume_feedback = resume_repository.get_resume_by_file_id(file_id)
         
@@ -31,6 +48,17 @@ def get_resume(file_id: Optional[str] = Form(...)):
 # Endpoint to upload a resume
 @resume_router.post("/upload")
 async def upload_resume(file: UploadFile = File(...), modelOption: Optional[str] = Form("openai"), userId: Optional[str] = Form(None)):
+    """
+    Upload a resume and extract information from it.
+    
+    Args:
+        file (UploadFile): The uploaded file.
+        modelOption (str): The model to use for processing the resume.
+        userId (str): The ID of the user.
+    
+    Returns:
+        dict: A dictionary containing the extracted text and LLM feedback.
+    """
     # Write the uploaded file's content to a temporary path
     original_filename = file.filename
     file_ext = file.filename.split(".")[-1]
