@@ -3,9 +3,19 @@ from pydantic import BaseModel
 import gridfs
 from bson import ObjectId
 import datetime
+from threading import Lock
 
-# Initialize GridFS
-fs = gridfs.GridFS(mongodb.db)
+# Thread-safe singleton for GridFS
+_gridfs_instance = None
+_gridfs_lock = Lock()
+
+def get_gridfs():
+    global _gridfs_instance
+    if _gridfs_instance is None:
+        with _gridfs_lock:
+            if _gridfs_instance is None:
+                _gridfs_instance = gridfs.GridFS(mongodb.db)
+    return _gridfs_instance
 
 # Pydantic model for resumes
 class Resume(BaseModel):
@@ -19,6 +29,7 @@ class Resume(BaseModel):
 
 # Function to save resume feedback
 def save_resume_feedback(user_id: str, file_name: str, resume_text: str, feedback: str, file_content: bytes, embedding: list[float]):
+    fs = get_gridfs()
     file_id = fs.put(file_content, filename=file_name, content_type="application/pdf")
     
     document = {
