@@ -3,7 +3,7 @@ from pydantic import BaseModel
 import gridfs
 from bson import ObjectId
 import datetime
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from threading import Lock
 
 class Resume(BaseModel):
@@ -107,11 +107,11 @@ class ResumeRepository:
             return result.get("embedding")
         return None
 
-    def get_resume_chat_messages(self, file_id: str) -> Optional[List[dict]]:
+    def get_resume_chat_messages(self, file_id: str) -> Optional[Tuple[List[dict], str, str]]:
         """
         Get chat history by file_id
         """
         result = self.get_resume_by_file_id(file_id)
         if result:
-            return result.get("chat_history")
-        return None
+            return result.get("chat_history"), result.get("resume_text"), result.get("feedback")
+        return [None, '', '']

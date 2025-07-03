@@ -31,11 +31,21 @@ async def chat(
         dict: A dictionary containing the response from the chat.
     """
     try:
-        print(chat_session.keys(), file_id)
-        if file_id in chat_session:
-            session = chat_session[file_id]
+        if file_id not in chat_session:
+            # Try to get resume data from database if not in session
+            resume_data = resume_repository.get_resume_by_file_id(file_id)
+            if not resume_data:
+                raise HTTPException(status_code=404, detail="Resume not found.")
+            
+            # Create new chat session
+            session = ChatSession(
+                messages=[],
+                resume=resume_data.get("resume_text", ""),
+                feedback=resume_data.get("feedback", "")
+            )
+            chat_session[file_id] = session
         else:
-            raise HTTPException(status_code=404, detail="Chat session not found.")
+            session = chat_session[file_id]
         
         resume_text = session.resume
         resume_feedback = session.feedback
@@ -76,9 +86,11 @@ async def chat(
         resume_repository.save_resume_chat_history(file_id, session_messages_json)
         return {"response": response}
     
+    except HTTPException:
+        raise
     except Exception as e:
-        print(e)
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"Unexpected error: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
     
      
 @chat_router.get("/start-chat")
