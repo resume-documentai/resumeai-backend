@@ -6,53 +6,81 @@ from app.core.utils.models import UserRegister, UserLogin
 from unittest.mock import patch, MagicMock
 
 @pytest.fixture
-def test_client(mock_mongodb):
-    """Create a test client with mocked MongoDB"""
-    # Create a new client for each test
+def test_client():
+    """Create a test client"""
     return TestClient(app)
-
+    
 test_user = UserRegister(
     email="test@example.com",
     password="test_password",
     username="test_user"
 )
 
+
 def test_auth_register_success(mock_mongodb, test_client):
     """Test successful user registration"""
-    # Mock MongoDB operations
-    mock_mongodb.users_collection.find_one.return_value = None
-    mock_mongodb.users_collection.insert_one.return_value = MagicMock(inserted_id="test_id")
+    # Reset mock collection
+    mock_mongodb.users_collection.find_one.reset_mock()
+    mock_mongodb.users_collection.insert_one.reset_mock()
     
     # Mock password hashing to speed up test
     with patch('app.core.utils.security.hash_password', return_value='hashed_password'):
+        # Set up mock MongoDB to return None for find_one (no existing user)
+        mock_mongodb.users_collection.find_one.return_value = None
+        
+        # Set up mock insert_one to return a mock result
+        mock_result = MagicMock()
+        mock_result.inserted_id = "test_user_id"
+        mock_mongodb.users_collection.insert_one.return_value = mock_result
+        
+        # Verify mock is empty before test
+        print("Mock collection state before test:")
+        print(f"Find one calls: {mock_mongodb.users_collection.find_one.call_count}")
+        print(f"Insert one calls: {mock_mongodb.users_collection.insert_one.call_count}")
+        
+        # Create a UserRegister model instance
+        new_user = UserRegister(
+            username="user",
+            email="user@example.com",
+            password="test_password"
+        )
+        
         response = test_client.post(
             "/auth/register/",
-            json={
-                "username": test_user.username,
-                "email": test_user.email,
-                "password": test_user.password
-            }
+            json=new_user.model_dump()
         )
-    
-    assert response.status_code == 200
-    assert "message" in response.json()
-    assert response.json()["message"] == "User registered successfully"
-    
-    # Verify MongoDB operations
-    mock_mongodb.users_collection.find_one.assert_called_once_with({"email": test_user.email})
-    mock_mongodb.users_collection.insert_one.assert_called_once()
-    
-    # Verify the inserted document
-    inserted_doc = mock_mongodb.users_collection.insert_one.call_args[0][0]
-    assert inserted_doc["email"] == test_user.email
-    assert inserted_doc["username"] == test_user.username
-    assert "password" in inserted_doc
+        print(response.json())
+        assert response.status_code == 200
+        assert "message" in response.json()
+        assert response.json()["message"] == "User registered successfully"
+        
+        # Verify MongoDB operations
+        mock_mongodb.users_collection.find_one.assert_called_once_with({"email": new_user.email})
+        mock_mongodb.users_collection.insert_one.assert_called_once()
+        
+        # Verify the inserted document
+        inserted_doc = mock_mongodb.users_collection.insert_one.call_args[0][0]
+        assert inserted_doc["email"] == new_user.email
+        assert inserted_doc["username"] == new_user.username
+        assert "password" in inserted_doc
+        assert inserted_doc["password"] == "hashed_password"
+        
+        # Verify mock state after test
+        print("\nMock collection state after test:")
+        print(f"Find one calls: {mock_mongodb.users_collection.find_one.call_count}")
+        print(f"Insert one calls: {mock_mongodb.users_collection.insert_one.call_count}")
 
 def test_auth_register_email_exists(mock_mongodb, test_client):
     """Test registration with existing email"""
+    # Reset mock collection
+    mock_mongodb.users_collection.find_one.reset_mock()
+    mock_mongodb.users_collection.insert_one.reset_mock()
+    
     # Mock MongoDB to return existing user
     mock_mongodb.users_collection.find_one.return_value = {
-        "email": test_user.email
+        "email": test_user.email,
+        "username": test_user.username,
+        "password": hash_password(test_user.password)
     }
     
     response = test_client.post(

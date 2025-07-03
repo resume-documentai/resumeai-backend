@@ -3,6 +3,7 @@ from app.core.utils import security as auth_utils
 from app.core.utils.models import UserRegister, UserLogin
 from app.core.database import Database
 from app.core.dependencies import get_database
+from app.core.utils.security import verify_password, hash_password
 
 auth_router = APIRouter()
 
@@ -32,10 +33,12 @@ async def register(
     Returns:
         dict: A dictionary containing a success message.
     """
-    print("hit", user)
     # Check if the email is already registered
-    if db.users_collection.find_one({"email": user.email}):
+    existing_user = db.users_collection.find_one({"email": user.email})
+    if existing_user and isinstance(existing_user, dict):
         raise HTTPException(status_code=400, detail="Email already registered")
+
+
     # Hash the user's password
     hashed_password = auth_utils.hash_password(user.password)
     

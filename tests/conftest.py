@@ -49,7 +49,7 @@ def test_resume_with_chat():
     }
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def mock_mongodb():
     """Create a mock database for testing"""
     from app.core.dependencies import db_instance, get_mock_database
