@@ -1,84 +1,83 @@
 from openai import OpenAI
 import requests
 from app.core.config import LLAMA_SERVER, OPENAI_API_KEY
+from typing import Optional
 
-base_prompt = ("You are a professional resume reviewer. "
-        "Analyze the following resume text and provide feedback on the candidate's strengths, weaknesses, "
-        "and suggestions for improvement. Focus on the clarity, relevance, and impact of the information provided. "
-        "Ensure your feedback is in raw markdown format, with correct bullet points and formatting."
-        "Ignore formatting issues and be succinct in your feedback. "
-        "Also, highlight any grammatical errors. Here is the resume text:\n\n")
+class ProcessLLM:
+    def __init__(self):
+        self.openai_client = OpenAI(api_key=OPENAI_API_KEY)
+        self.base_prompt = ("You are a professional resume reviewer. "
+                           "Analyze the following resume text and provide feedback on the candidate's strengths, weaknesses, "
+                           "and suggestions for improvement. Focus on the clarity, relevance, and impact of the information provided. "
+                           "Ensure your feedback is in raw markdown format, with correct bullet points and formatting."
+                           "Ignore formatting issues and be succinct in your feedback. "
+                           "Also, highlight any grammatical errors. Here is the resume text:\n\n")
 
-# Function to test connection to the LLAMA server
-def __test_llama_connection():
-    try:
-        # Send a GET request to the LLAMA server
-        response = requests.get(f"{LLAMA_SERVER}/api/tags", timeout=3)  
-        if response.status_code == 200:
-            return True
-    except requests.RequestException:
-        pass
-    return False
+    def __test_llama_connection(self) -> bool:
+        """Test connection to the LLAMA server"""
+        try:
+            response = requests.get(f"{LLAMA_SERVER}/api/tags", timeout=3)
+            return response.status_code == 200
+        except requests.RequestException:
+            return False
 
-# Function to test connection to the OpenAI API
-def __test_openai_connection(client: OpenAI):
-    try:
-        # List available models from OpenAI
-        response = client.models.list()
-        if response:
-            return True
-    except Exception:
-        pass
-    return False
+    def __test_openai_connection(self) -> bool:
+        """Test connection to the OpenAI API"""
+        try:
+            response = self.openai_client.models.list()
+            return bool(response)
+        except Exception:
+            return False
 
-# Function to process resume text using the LLAMA server
-def __process_with_llama(extracted_text: str, prompt: str):
-    if not __test_llama_connection():
-        return "Error: Unable to connect to llama server."
-
-    # Create a prompt for the LLAMA server
-    llama_prompt = (
-        f"{prompt}"
-        f"{extracted_text}"
-    )
-
-    try:
-        # Send a POST request to the LLAMA server with the prompt
-        response = requests.post(f"{LLAMA_SERVER}/api/generate", json={
-            "model": "llama3.1:latest",
-            "prompt": f"{llama_prompt}"
-        })
-        return response.json().get("response", "No response from llama.")
-    except Exception as e:
-        return f"Error processing resume: {str(e)}"
-
-# Function to process resume text using the OpenAI API
-def __process_with_openai(extracted_text: str, prompt: str):
-
-    try:
-        # Initialize the OpenAI client
-        client = OpenAI(api_key=OPENAI_API_KEY)
-
-        if not __test_openai_connection(client):
+    def __process_with_llama(self, extracted_text: str, prompt: str) -> str:
+        """Process resume text using the LLAMA server"""
+        if not self.__test_llama_connection():
             return "Error: Unable to connect to llama server."
-        
-        # Create a chat completion request to OpenAI
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": prompt},
-                {"role": "user", "content": extracted_text}
-            ]
-        )
-        return response.choices[0].message.content
-    except Exception as e:
-        return f"Error processing resume: {str(e)}"
 
-# Main function to process resume text based on the selected option (LLAMA or OpenAI)
-def process(extracted_text: str, option: str, prompt: str = base_prompt):
-    if option == "ollama":
-        return __process_with_llama(extracted_text, prompt)
-    elif option == "openai":
-        return __process_with_openai(extracted_text, prompt)
+        llama_prompt = f"{prompt}{extracted_text}"
+
+        try:
+            response = requests.post(f"{LLAMA_SERVER}/api/generate", json={
+                "model": "llama3.1:latest",
+                "prompt": llama_prompt
+            })
+            return response.json().get("response", "No response from llama.")
+        except Exception as e:
+            return f"Error processing resume: {str(e)}"
+
+    def __process_with_openai(self, extracted_text: str, prompt: str) -> str:
+        """Process resume text using the OpenAI API"""
+        if not self.__test_openai_connection():
+            return "Error: Unable to connect to OpenAI server."
+
+        try:
+            response = self.openai_client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": prompt},
+                    {"role": "user", "content": extracted_text}
+                ]
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            return f"Error processing resume: {str(e)}"
+
+    def process(self, extracted_text: str, option: str, prompt: Optional[str] = None) -> str:
+        """
+        Process resume text using either LLAMA or OpenAI
+        Args:
+            extracted_text: The resume text to process
+            option: 'ollama' or 'openai'
+            prompt: Optional custom prompt, uses base_prompt if not provided
+        Returns:
+            Processed feedback
+        """
+        prompt = prompt or self.base_prompt
+        
+        if option == "ollama":
+            return self.__process_with_llama(extracted_text, prompt)
+        elif option == "openai":
+            return self.__process_with_openai(extracted_text, prompt)
+        return "Invalid processing option"
     
     

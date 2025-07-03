@@ -1,15 +1,24 @@
-from typing import Dict, Optional
-from fastapi import APIRouter, HTTPException, Form, Query
+from typing import Dict
+from fastapi import APIRouter, HTTPException, Depends, Form, Query
 import heapq
 import numpy as np
-from app.services import resume_repository, process_llm, file_processing
 from app.core.utils.models import Message, ChatSession
+from app.core.dependencies import get_database, get_resume_repository, get_file_processing, get_process_llm
+from app.services.process_llm import ProcessLLM
+from app.services.resume_repository import ResumeRepository
+from app.services.file_processing import FileProcessing
 
 chat_router = APIRouter()
 chat_session: Dict[str, ChatSession] = {}
 
 @chat_router.post("/")
-async def chat(file_id: str = Form(...), message: str = Form(...), model: str = "openai"):
+async def chat(
+    file_id: str = Form(...), 
+    message: str = Form(...), 
+    model: str = "openai",
+    resume_repository: ResumeRepository = Depends(get_resume_repository),
+    process_llm: ProcessLLM = Depends(get_process_llm)
+):
     """
     Chat with a resume.
     
@@ -73,7 +82,9 @@ async def chat(file_id: str = Form(...), message: str = Form(...), model: str = 
     
      
 @chat_router.get("/start-chat")
-async def start_chat(file_id: str = Query(None)):
+async def start_chat(
+    file_id: str = Query(None),
+    resume_repository: ResumeRepository = Depends(get_resume_repository)):
     """
     Start a chat session for a given resume file. If the chat session already exists, return the existing session.
     
@@ -93,7 +104,11 @@ async def start_chat(file_id: str = Query(None)):
     return [msg.__dict__ for msg in session.messages]
     
 @chat_router.get("/similar-resumes")
-async def get_similar_resumes(user_id: str, query: str):
+async def get_similar_resumes(
+    user_id: str,
+    query: str,
+    file_processing: FileProcessing = Depends(get_file_processing),
+    resume_repository: ResumeRepository = Depends(get_resume_repository)):
     """
     Get similar resumes for a given user and query.
     

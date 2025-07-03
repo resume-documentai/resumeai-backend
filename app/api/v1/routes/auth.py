@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException, Depends
-from app.core.database import Database
 from app.core.utils import security as auth_utils
 from app.core.utils.models import UserRegister, UserLogin
+from app.core.database import Database
+from app.core.dependencies import get_database
 
 auth_router = APIRouter()
 
@@ -18,7 +19,9 @@ async def root():
 
 # Endpoint for user registration
 @auth_router.post("/register/")
-async def register(user: UserRegister, db: Database = Depends(Database)):
+async def register(
+    user: UserRegister,
+    db: Database = Depends(get_database)):
     """
     Register a new user.
     
@@ -50,7 +53,9 @@ async def register(user: UserRegister, db: Database = Depends(Database)):
 
 # Endpoint for user login
 @auth_router.post("/login/")
-async def login(user: UserLogin, db: Database = Depends(Database)):
+async def login(
+    user: UserLogin,
+    db: Database = Depends(get_database)):
     """
     Login a user.
     
