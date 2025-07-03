@@ -1,10 +1,11 @@
 from typing import Optional
 from fastapi import APIRouter, File, UploadFile, HTTPException, Query, Form, Depends
-from app.core.dependencies import get_database, get_resume_repository, get_file_processing, get_process_llm
+from app.core.dependencies import get_resume_repository, get_file_processing, get_process_llm
 from app.services.file_processing import FileProcessing
 from app.services.process_llm import ProcessLLM
 from app.services.resume_repository import ResumeRepository
-from app.core.database import Database
+import numpy as np
+import heapq
 import os
 
 resume_router = APIRouter()
@@ -108,3 +109,37 @@ async def upload_resume(
             os.remove(temp_path)
         raise HTTPException(status_code=500, detail=str(e))
     
+    
+@resume_router.get("/similar-resumes")
+async def get_similar_resumes(
+    user_id: str,
+    query: str,
+    file_processing: FileProcessing = Depends(get_file_processing),
+    resume_repository: ResumeRepository = Depends(get_resume_repository)):
+    """
+    Get similar resumes for a given user and query.
+    
+    Args:
+        user_id (str): The ID of the user.
+        query (str): The query to search for similar resumes.
+    
+    Returns:
+        list: A list of similar resumes.
+    """
+    try:
+        query_embedding = file_processing.generate_embeddings(query)
+        
+        user_resumes = resume_repository.get_user_resumes(user_id)
+        n = len(user_resumes)
+
+        similarties = []
+        for doc in user_resumes:
+            embedding = np.array(doc["embedding"])
+            score = np.dot(query_embedding, embedding) / (np.linalg.norm(query_embedding) * np.linalg.norm(embedding))
+            heapq.heappush(similarties, (-score, doc))
+    
+
+        return [heapq.heappop(similarties)[1] for _ in range(n)]
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
