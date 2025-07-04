@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     APP_NAME: str = "ResumeAI Backend"
     API_V1_STR: str = "/api/v1"
     
+    # Test mode configuration
+    TEST_MODE: bool = os.getenv("TEST_MODE", "false").lower() == "true"
+    
     class Config:
         case_sensitive = True
 
@@ -35,3 +38,4 @@ JWT_EXPIRATION_MINUTES = settings.JWT_EXPIRATION_MINUTES
 MONGO_URI = settings.MONGO_URI
 LLAMA_SERVER = settings.LLAMA_SERVER
 OPENAI_API_KEY = settings.OPENAI_API_KEY
+TEST_MODE = settings.TEST_MODE

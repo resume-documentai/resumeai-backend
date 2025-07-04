@@ -1,4 +1,4 @@
-FROM python:3.9
+FROM python:3.11
 
 WORKDIR /app
 
@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y \
 
 COPY requirements.txt /app/requirements.txt
 RUN pip install --upgrade pip setuptools wheel
+RUN pip install --no-cache-dir uvicorn
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
 COPY . .
