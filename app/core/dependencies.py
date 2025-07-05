@@ -35,8 +35,10 @@ def get_database() -> Database:
     if test_mode:
         return get_mock_database()
     
+    global db_instance
     if db_instance is None:
-        raise RuntimeError("Database not initialized. Call initialize_database() first")
+        db_instance = Database() 
+        db_instance.initialize()
     return db_instance
 
 def get_mock_database() -> Database:

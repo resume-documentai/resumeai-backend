@@ -44,6 +44,7 @@ class Database:
 
             uri = uri or os.getenv("MONGO_URI", "mongodb://localhost:27017/")
             # Configure connection pooling with optimized settings
+
             self._client = MongoClient(
                 uri,
                 maxPoolSize=50,  # Reduced from 100 to prevent excessive connections
@@ -55,22 +56,25 @@ class Database:
                 heartbeatFrequencyMS=10000, # Reduced heartbeat frequency
                 appname="resumeai-backend"  # Added app name for better monitoring
             )
-            self._db = self._client.get_database("resume_reviewer")
+            
+            # Get the database name from the URI
+            uri_parts = uri.split('/')
+            db_name = uri_parts[-1].split('?')[0]
+            
+            self._db = self._client.get_database(db_name)
+            
+            # Ensure collections exist
+            if "auth_collection" not in self._db.list_collection_names():
+                self._db.create_collection("auth_collection")
+            if "resume_collection" not in self._db.list_collection_names():
+                self._db.create_collection("resume_collection")
+            
             self._users_collection = self._db.get_collection("auth_collection")
             self._resume_collection = self._db.get_collection("resume_collection")
             
             # Test connection
             self._client.admin.command('ping')
-            print(f"Successfully connected to MongoDB at {uri}")
             
-            # Initialize database if it doesn't exist
-            if "resume_reviewer" not in self._client.list_database_names():
-                self._db.create_collection("auth_collection")
-                self._db.create_collection("resume_collection")
-                print("Database and collections created successfully.")
-            else:
-                print("Database already exists.")
-                
             self._initialized = True
             
         except ConnectionFailure as e:

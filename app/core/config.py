@@ -7,7 +7,7 @@ load_dotenv()
 
 class Settings(BaseSettings):
     # MongoDB configuration
-    MONGO_URI: str = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+    MONGO_URI: str = os.getenv("MONGO_URI", "mongodb://${MONGODB_USER}:${MONGODB_PASSWORD}@mongodb:27017/resumeai?authSource=admin")
     
     # JWT configuration
     JWT_SECRET: str = os.getenv("JWT_SECRET", "your-default-secret-key")
