@@ -112,5 +112,6 @@ class Database:
     def resume_collection(self):
         if not self._initialized:
             raise RuntimeError("Database not initialized")
+        return self._resume_collection
 
 

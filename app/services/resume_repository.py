@@ -80,14 +80,8 @@ class ResumeRepository:
         """
         Get resume by file_id
         """
+        print(file_id)
         return self.db.resume_collection.find_one({"_id": ObjectId(file_id)})
-
-    def get_user_resumes(self, user_id: Optional[str] = None) -> List[dict]:
-        """
-        Get all resumes for a user
-        """
-        query = {} if user_id is None else {"user_id": user_id}
-        return list(self.db.resume_collection.find(query))
 
     def get_resume_text_and_feedback(self, file_id: str) -> Optional[List[str]]:
         """

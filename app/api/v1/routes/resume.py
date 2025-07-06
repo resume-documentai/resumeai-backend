@@ -7,6 +7,7 @@ from app.services.resume_repository import ResumeRepository
 import numpy as np
 import heapq
 import os
+from typing import List
 
 resume_router = APIRouter()
 
@@ -25,9 +26,12 @@ def get_all_resumes(
     Returns:
         list: A list of resumes.
     """
+    if not user_id:
+        raise HTTPException(status_code=400, detail="User ID is required")
+
     try:
         # Print userId for debugging purposes
-        # print(user_id)
+        print(user_id)
         return resume_repository.get_user_resumes(user_id)
     except Exception as e:
         print(str(e))
@@ -49,8 +53,9 @@ def get_resume(
         dict: A dictionary containing the extracted text and LLM feedback.
     """
     try:
-        resume_text, resume_feedback = resume_repository.get_resume_by_file_id(file_id)
-        
+        resume = resume_repository.get_resume_by_file_id(file_id)
+        resume_text = resume.get("resume_text")
+        resume_feedback = resume.get("feedback")
         return {"extracted_text": resume_text, "llm_feedback": resume_feedback}
     except Exception as e:
         print(str(e))
@@ -63,16 +68,16 @@ async def upload_resume(
     file_processing: FileProcessing = Depends(get_file_processing),
     process_llm: ProcessLLM = Depends(get_process_llm),
     file: UploadFile = File(...),
-    modelOption: str = Form("openai"),
-    userId: Optional[str] = Form(None),
+    model_option: str = Form("openai"),
+    user_id : Optional[str] = Form(None),
 ):
     """
     Upload a resume and extract information from it.
     
     Args:
         file (UploadFile): The uploaded file.
-        modelOption (str): The model to use for processing the resume. Defaults to "openai".
-        userId (str, optional): The ID of the user. Defaults to None.
+        model_option (str): The model to use for processing the resume. Defaults to "openai".
+        user_id (str, optional): The ID of the user. Defaults to None.
         file_processing (FileProcessing): File processing service.
         process_llm (ProcessLLM): LLM processing service.
         resume_repository (ResumeRepository): Resume repository service.
@@ -91,18 +96,21 @@ async def upload_resume(
             f.write(file_bytes)
 
         # Extract information from file
-        txt = await file_processing.extract(temp_path, file_ext)    
+        txt = file_processing.extract(temp_path, file_ext)    
         os.remove(temp_path)
 
         if not txt:
             raise HTTPException(status_code=400, detail="Unsupported file type")
 
-        if userId:
-            resume = await resume_repository.get_resume(userId, original_filename, txt)
+        if user_id:
+            resume = resume_repository.get_resume(user_id, original_filename, txt)
             if resume:
                 return {"extracted_text": resume[0], "llm_feedback": resume[1]}
         
-        llm_feedback = await process_llm.process(txt, option=modelOption)
+        llm_feedback = process_llm.process(txt, option=model_option)
+        
+        resume_repository.save_resume_feedback(user_id, original_filename, txt, llm_feedback, file_bytes, file_processing.generate_embeddings(txt))
+        
         return {"extracted_text": txt, "llm_feedback": llm_feedback}
     except Exception as e:
         if os.path.exists(temp_path):
@@ -110,10 +118,10 @@ async def upload_resume(
         raise HTTPException(status_code=500, detail=str(e))
     
     
-@resume_router.get("/similar-resumes")
+@resume_router.post("/similar-resumes")
 async def get_similar_resumes(
-    user_id: str,
-    query: str,
+    user_id: str = Form(...),
+    query: str = Form(...),
     file_processing: FileProcessing = Depends(get_file_processing),
     resume_repository: ResumeRepository = Depends(get_resume_repository)):
     """
@@ -128,18 +136,30 @@ async def get_similar_resumes(
     """
     try:
         query_embedding = file_processing.generate_embeddings(query)
+        query_embedding = np.array(query_embedding[0])
         
         user_resumes = resume_repository.get_user_resumes(user_id)
         n = len(user_resumes)
 
         similarties = []
         for doc in user_resumes:
-            embedding = np.array(doc["embedding"])
+            embedding = np.array(doc["embedding"][0])
+            
             score = np.dot(query_embedding, embedding) / (np.linalg.norm(query_embedding) * np.linalg.norm(embedding))
             heapq.heappush(similarties, (-score, doc))
     
-
-        return [heapq.heappop(similarties)[1] for _ in range(n)]
+        results = []
+        for score, doc in [heapq.heappop(similarties) for _ in range(n)]:
+            results.append({
+                "id": doc["id"],
+                "file_id": doc["file_id"],
+                "file_name": doc["file_name"],
+                "created_at": doc["created_at"],
+                "embedding": doc["embedding"],
+                "score": -score # negative score because heapq is a min heap
+            })
+        
+        return results
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
