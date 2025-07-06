@@ -93,7 +93,8 @@ async def chat(
 @chat_router.get("/start-chat")
 async def start_chat(
     file_id: str = Query(None),
-    resume_repository: ResumeRepository = Depends(get_resume_repository)):
+    resume_repository: ResumeRepository = Depends(get_resume_repository)
+):
     """
     Start a chat session for a given resume file. If the chat session already exists, return the existing session.
     
