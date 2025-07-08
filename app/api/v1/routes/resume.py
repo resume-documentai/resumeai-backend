@@ -1,13 +1,20 @@
-from typing import Optional
+from typing import List, Optional
+import os
+import numpy as np
+import heapq
+
 from fastapi import APIRouter, File, UploadFile, HTTPException, Query, Form, Depends
-from app.core.dependencies import get_resume_repository, get_file_processing, get_process_llm
+
+from app.core.dependencies import (
+    get_resume_repository,
+    get_file_processing,
+    get_process_llm,
+)
 from app.services.file_processing import FileProcessing
 from app.services.process_llm import ProcessLLM
 from app.services.resume_repository import ResumeRepository
-import numpy as np
-import heapq
-import os
-from typing import List
+from app.services.llm_prompts import DOCUMENT_TEMPLATE, BASE_PROMPT
+
 
 resume_router = APIRouter()
 
@@ -107,11 +114,16 @@ async def upload_resume(
             if resume:
                 return {"extracted_text": resume[0], "llm_feedback": resume[1]}
         
-        llm_feedback = process_llm.process(txt, option=model_option)
+        document = DOCUMENT_TEMPLATE.format(
+            document=txt,
+            feedback={},
+            chat_history=""
+        )
+
+        llm_feedback = process_llm.process(document, option=model_option, prompt=BASE_PROMPT)
         
         resume_repository.save_resume_feedback(user_id, original_filename, txt, llm_feedback, file_bytes, file_processing.generate_embeddings(txt))
-        
-        return {"extracted_text": txt, "llm_feedback": llm_feedback}
+        return {"extracted_text": txt, "feedback": llm_feedback}
     except Exception as e:
         if os.path.exists(temp_path):
             os.remove(temp_path)

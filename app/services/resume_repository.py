@@ -3,7 +3,7 @@ from pydantic import BaseModel
 import gridfs
 from bson import ObjectId
 import datetime
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Any
 from threading import Lock
 
 class Resume(BaseModel):
@@ -11,7 +11,7 @@ class Resume(BaseModel):
     file_id: str
     file_name: str 
     resume_text: str
-    feedback: str
+    feedback: List[Any]
     embedding: List[float]
     created_at: datetime.datetime
 
@@ -47,7 +47,7 @@ class ResumeRepository:
             return [result["resume_text"], result["feedback"]]
         return None
 
-    def save_resume_feedback(self, user_id: str, file_name: str, resume_text: str, feedback: str, file_content: bytes, embedding: List[float]) -> str:
+    def save_resume_feedback(self, user_id: str, file_name: str, resume_text: str, feedback: List[Any], file_content: bytes, embedding: List[float]) -> str:
         """
         Save resume feedback and return the file_id
         """
@@ -80,7 +80,6 @@ class ResumeRepository:
         """
         Get resume by file_id
         """
-        print(file_id)
         return self.db.resume_collection.find_one({"_id": ObjectId(file_id)})
 
     def get_resume_text_and_feedback(self, file_id: str) -> Optional[List[str]]:
@@ -101,7 +100,7 @@ class ResumeRepository:
             return result.get("embedding")
         return None
 
-    def get_resume_chat_messages(self, file_id: str) -> Optional[Tuple[List[dict], str, str]]:
+    def get_resume_chat_messages(self, file_id: str) -> Optional[Tuple[List[dict], str, List[Any]]]:
         """
         Get chat history by file_id
         """

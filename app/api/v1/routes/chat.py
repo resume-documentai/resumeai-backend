@@ -4,6 +4,7 @@ from app.core.utils.models import ChatSession, Message
 from app.core.dependencies import get_resume_repository, get_process_llm
 from app.services.process_llm import ProcessLLM
 from app.services.resume_repository import ResumeRepository
+from app.services.llm_prompts import CHAT_PROMPT, DOCUMENT_TEMPLATE
 
 chat_router = APIRouter()
 chat_session: Dict[str, ChatSession] = {}
@@ -38,7 +39,7 @@ async def chat(
             session = ChatSession(
                 messages=[],
                 resume=resume_data.get("resume_text", ""),
-                feedback=resume_data.get("feedback", "")
+                feedback=resume_data.get("feedback", {})
             )
             chat_session[file_id] = session
         else:
@@ -48,40 +49,22 @@ async def chat(
         resume_feedback = session.feedback
         
         formatted_chat_history = "\n".join([f"{msg.type}: {msg.text}" for msg in session.messages])
+        formatted_chat_history += f"\nuser: {message}"
     
-        
-        prompt = f"""
-            You are a professional recruiter reviewing a resume. Have your feedback be succinct and constructive.
-            When asked to give feedback, you should provide a response that uses short bullet points.
-            Give some concrete examples of your feedback.
-            You can make up some information if you need to, but make sure you let the user know that you are giving an example.
-            Ensure your feedback is in raw markdown format, with correct bullet points and formatting.
-            If you are unsure about something, you can say that you are unsure.
-            Try not to repeat information that has already been given unless explicitly asked to.
-            The user has uploaded a resume and received feedback.
-
-            Resume: 
-            {resume_text}
-            
-            Feedback: 
-            {resume_feedback}
-            
-            Chat History:
-            {formatted_chat_history}
-                        
-            User: {message}
-            Assistant:
-        """
-        
-        response = process_llm.process(message, model, prompt) or ""
-        
+        document = DOCUMENT_TEMPLATE.format(
+            document=resume_text,
+            feedback=resume_feedback,
+            chat_history=formatted_chat_history,
+        )
+    
+        response = process_llm.process(text=document, model=model, prompt=CHAT_PROMPT) or ""
         session.messages.append(Message(type="user", text=message))
-        session.messages.append(Message(type="bot", text=response))
+        session.messages.append(Message(type="bot", text=response.get("response")))
         
         session_messages_json = [msg.__dict__ for msg in session.messages]
 
         resume_repository.save_resume_chat_history(file_id, session_messages_json)
-        return {"response": response}
+        return response
     
     except HTTPException:
         raise

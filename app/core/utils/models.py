@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict, Any
 from pydantic import BaseModel, ConfigDict
 
 def config(cls):
@@ -15,7 +15,7 @@ class Message(BaseModel):
 class ChatSession(BaseModel):
     messages: List[Message]
     resume: str
-    feedback: str
+    feedback: Dict[str, Any]
 
 # Auth Models
 @config
