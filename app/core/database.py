@@ -5,6 +5,8 @@ from threading import Lock
 from app.core.config import TEST_MODE
 import os
 
+
+
 class Database:
     _instance = None
     _lock = Lock()

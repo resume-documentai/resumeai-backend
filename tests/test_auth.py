@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 from main import app
 from app.core.utils.security import verify_password, hash_password
-from app.core.utils.models import UserRegister, UserLogin
+from app.core.models.pydantic_models import UserRegister, UserLogin
 from unittest.mock import patch, MagicMock
 
 @pytest.fixture

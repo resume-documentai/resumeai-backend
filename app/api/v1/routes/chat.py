@@ -1,6 +1,6 @@
 from typing import Dict
 from fastapi import APIRouter, HTTPException, Depends, Form, Query
-from app.core.utils.models import ChatSession, Message
+from app.core.models.pydantic_models import ChatSession, Message
 from app.core.dependencies import get_resume_repository, get_process_llm
 from app.services.process_llm import ProcessLLM
 from app.services.resume_repository import ResumeRepository

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from app.core.utils import security as auth_utils
-from app.core.utils.models import UserRegister, UserLogin
+from app.core.models.pydantic_models import UserRegister, UserLogin
 from app.core.database import Database
 from app.core.dependencies import get_database
 from app.core.utils.security import verify_password, hash_password

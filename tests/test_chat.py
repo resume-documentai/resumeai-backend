@@ -1,7 +1,7 @@
 import pytest
 from bson import ObjectId
 from typing import List
-from app.core.utils.models import Message, ChatSession
+from app.core.models.pydantic_models import Message, ChatSession
 from unittest.mock import patch
 
 @pytest.mark.asyncio
