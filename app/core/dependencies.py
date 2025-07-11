@@ -1,5 +1,6 @@
 from app.core.database import Database
 from app.services.resume_repository import ResumeRepository
+from app.services.security_repository import SecurityRepository
 from app.services.process_llm import ProcessLLM
 from app.services.file_processing import FileProcessing
 from fastapi import Depends
@@ -54,6 +55,11 @@ def get_resume_repository():
     """Get the resume repository instance"""
     db = get_database()
     return ResumeRepository(db)
+
+def get_security_repository():
+    """Get the security repository instance"""
+    db = get_database()
+    return SecurityRepository(db)
 
 def get_process_llm() -> ProcessLLM:
     """Get the LLM processing instance"""
