@@ -1,14 +1,16 @@
-from app.core.database import database
-from app.core.models.sql_models import AuthUser
-from app.core.utils.security import hash_password
 from typing import Optional
 
+from app.core.database import Database
+from app.core.models.sql_models import AuthUser
+from app.core.utils.security import hash_password
+
 class SecurityRepository:
-    def __init__(self):
-        self.db = database
+    def __init__(self, db: Database):
+        self.db = db
 
     def user_exists(self, email: str) -> bool:
         session = self.db.get_session()
+
         try:
             user = session.query(
                 AuthUser
@@ -37,7 +39,11 @@ class SecurityRepository:
         finally:
             session.close()
 
-    def register_user_in_db(self, username: str, email: str, password: str):
+    def register_user_in_db(self,
+        username: str,
+        email: str,
+        password: str
+    ):
         session = self.db.get_session()
         try:
             user = AuthUser(
