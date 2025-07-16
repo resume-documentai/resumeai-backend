@@ -1,16 +1,11 @@
-from app.core.database import Database
+from app.core.database import Database, database    
+from app.services.file_processing import FileProcessing
+from app.services.process_llm import ProcessLLM
 from app.services.resume_repository import ResumeRepository
 from app.services.security_repository import SecurityRepository
-from app.services.process_llm import ProcessLLM
-from app.services.file_processing import FileProcessing
 from fastapi import Depends
-from typing import Any
 from functools import lru_cache
-from typing import Callable
 from unittest.mock import MagicMock
-
-# Global database instance for the application
-db_instance = None
 
 # Flag to indicate if we're in test mode
 test_mode = False
@@ -22,7 +17,6 @@ def set_test_mode(mode: bool):
 
 def get_mock_database() -> Database:
     """Get a mock database instance for testing"""
-    from unittest.mock import MagicMock
     mock_db = Database()
     mock_db._client = MagicMock()
     mock_db._db = MagicMock()
@@ -35,12 +29,7 @@ def get_database() -> Database:
     """Get the database instance"""
     if test_mode:
         return get_mock_database()
-    
-    global db_instance
-    if db_instance is None:
-        db_instance = Database() 
-        db_instance.initialize()
-    return db_instance
+    return database
 
 def get_mock_database() -> Database:
     """Get a mock database instance for testing"""

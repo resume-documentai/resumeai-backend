@@ -35,17 +35,17 @@ class Resume(Base):
                             back_populates="resume",
                             uselist=False,
                             cascade="all, delete-orphan",
-                            lazy="joined")
+                            single_parent=True)
     chatsession = relationship("ChatSession",
                             back_populates="resume",
                             uselist=False,
                             cascade="all, delete-orphan",
-                            lazy="joined")
+                            single_parent=True)
     embedding = relationship("ResumeEmbedding",
                             back_populates="resume",
                             uselist=False,
                             cascade="all, delete-orphan",
-                            lazy="joined")
+                            single_parent=True)
     
 class ResumeFeedback(Base):
     __tablename__ = 'resume_feedback'
@@ -57,7 +57,7 @@ class ResumeFeedback(Base):
                             back_populates="feedback",
                             uselist=False,
                             cascade="all, delete-orphan",
-                            lazy="joined")
+                            single_parent=True)
 
 class ChatSession(Base):
     __tablename__ = 'chat_sessions'
@@ -69,7 +69,7 @@ class ChatSession(Base):
                             back_populates="chatsession",
                             uselist=False,
                             cascade="all, delete-orphan",
-                            lazy="joined")
+                            single_parent=True)
     
 class ResumeEmbedding(Base):
     __tablename__ = 'resume_embeddings'
@@ -81,8 +81,10 @@ class ResumeEmbedding(Base):
                             back_populates="embedding",
                             uselist=False,
                             cascade="all, delete-orphan",
-                            lazy="joined")
+                            single_parent=True)
 
 
 # engine = create_engine(DATABASE_URL)
 # Base.metadata.create_all(bind=engine)
+
+# print("Tables created successfully.")

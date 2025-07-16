@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from threading import Lock
 from app.core.config import TEST_MODE
@@ -43,7 +43,7 @@ class Database:
             self._initialized = True
             
             with self._engine.connect() as conn:
-                conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
+                conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
                 conn.commit()
 
             
