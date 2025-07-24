@@ -1,31 +1,20 @@
 from typing import List, Optional, Tuple, Any
-from threading import Lock
+import hashlib
 
-from gridfs import GridFS
+from sqlalchemy.orm import joinedload
 
-from app.core.database import database
+from app.core.database import Database
 from app.core.models.sql_models import (
     Resume,
     ResumeFeedback,
     ResumeEmbedding,
     ChatSession
 )
-from app.core.models.pydantic_models import Feedback
+from app.core.models.pydantic_models import Feedback, SimpleResume
 
 class ResumeRepository:
-    def __init__(self):
-        self.db = database
-        self._gridfs_instance = None
-        self._gridfs_lock = Lock()
-
-    def get_gridfs(self):
-        """Get thread-safe GridFS instance"""
-        if self._gridfs_instance is None:
-            with self._gridfs_lock:
-                if self._gridfs_instance is None:
-                    self._gridfs_instance = GridFS(self.db._engine)
-        return self._gridfs_instance
-
+    def __init__(self, db: Database):
+        self.db = db
 
     def get_user_resumes(self, user_id: str):
         """Get all resumes for a user"""
@@ -46,29 +35,35 @@ class ResumeRepository:
                 Resume.user_id == user_id
             ).all()
             
-            return [{
-                "id": str(resume.id),
-                "file_id": str(resume.file_id),
-                "file_name": resume.file_name,
-                "created_at": resume.created_at,
-                "embedding": resume.embedding
-            } for resume in resumes]
+            return [
+                SimpleResume(
+                    id=str(resume.id),
+                    file_id=str(resume.file_id),
+                    file_name=resume.file_name,
+                    created_at=resume.created_at,
+                    embedding=resume.embedding
+                ) for resume in resumes
+            ]
         except Exception as e:
             raise e
         finally:
             session.close()
 
 
-    def get_resume(self, user_id: str, original_filename: str, resume_text: str):
-        """ Get resume by user_id and original_filename """
+    def get_resume(self,
+        file_id: str
+    ) -> Optional[Resume]:
+        """ Get resume by file_id """
         session = self.db.get_session()
 
         try:
             # Get resume by user_id, original_filename, and resume_text
-            query = session.query(Resume).filter(
-                Resume.user_id == user_id,
-                Resume.file_name == original_filename,
-                Resume.resume_text == resume_text
+            query = session.query(Resume).options(
+                joinedload(Resume.feedback),
+                joinedload(Resume.chatsession),
+                joinedload(Resume.embedding)
+            ).filter(
+                Resume.file_id == file_id
             ).first()
             
             return query
@@ -77,15 +72,32 @@ class ResumeRepository:
         finally:
             session.close()
 
-    def save_resume_feedback(self, user_id: str, file_name: str, resume_text: str, feedback: Feedback, file_content: bytes, embedding: List[float]) -> str:
+    def save_resume_feedback(self,
+        user_id: str,
+        file_id: str,
+        file_name: str,
+        resume_text: str,
+        feedback: Feedback,
+        embedding: List[float]
+    ) -> str:
         """ Save resume feedback and return the file_id """
         session = self.db.get_session()
-        
         try:
-            fs = self.get_gridfs()
-            file_id = fs.put(file_content, filename=file_name, content_type="application/pdf")
-        
             # Create Query items to be inserted
+            feedback_obj = ResumeFeedback(
+                id=file_id,
+                feedback=feedback.model_dump()
+            )
+            
+            embedding_obj = ResumeEmbedding(
+                id=file_id,
+                embedding=embedding
+            )
+            chat_session_obj = ChatSession(
+                id=file_id,
+                chat_history={}
+            )
+            
             resume = Resume(
                 user_id=user_id,
                 file_id=file_id,
@@ -93,39 +105,28 @@ class ResumeRepository:
                 resume_text=resume_text,
                 general_feedback=feedback.general_feedback,
                 overall_score=feedback.overall_score,
+                feedback=feedback_obj,
+                chatsession=chat_session_obj,
+                embedding=embedding_obj,
             )
             
-            feedback = ResumeFeedback(
-                id=file_id,
-                feedback=feedback.model_dump()
-            )
-            
-            embedding = ResumeEmbedding(
-                id=file_id,
-                embedding=embedding
-            )
-            
-            chat_session = ChatSession(
-                id=file_id,
-                chat_history={}
-            )
-            
-            # Add items to session and commit them 
+            # Add resume and commit since it is required for the other tables
             session.add(resume)
-            session.add(feedback)
-            session.add(embedding)
-            session.add(chat_session)
             session.commit()
-        
+
             return str(file_id)
         except Exception as e:
             # undo changes if an error occurs
+            print(e)
             session.rollback()
             raise e
         finally:
             session.close()
 
-    def save_resume_chat_history(self, file_id: str, chat_history: List[dict]):
+    def save_resume_chat_history(self,
+        file_id: str,
+        chat_history: List[dict]
+    ):
         """ Save chat history for a resume """
         session = self.db.get_session()
         
@@ -155,41 +156,6 @@ class ResumeRepository:
         finally:
             session.close()
 
-    def get_resume_by_file_id(self, file_id: str) -> Optional[dict]:
-        """ Get resume by file_id """
-        session = self.db.get_session()
-        
-        try:
-            # Get resume by file_id
-            resume = session.query(
-                Resume
-            ).filter(
-                Resume.file_id == file_id
-            ).first()
-            
-            return resume
-        except Exception as e:
-            raise e
-        finally:
-            session.close()
-
-    def get_resume_text_and_feedback(self, file_id: str) -> Optional[List[str]]:
-        """ Get resume text and feedback by file_id """
-        session = self.db.get_session()
-        
-        try:
-            # Get resume by file_id
-            resume = session.query(
-                Resume
-            ).filter(
-                Resume.file_id == file_id
-            ).first()
-            
-            return [resume.resume_text, resume.general_feedback]
-        except Exception as e:
-            raise e
-        finally:
-            session.close()
 
     def get_resume_embedding(self, file_id: str) -> Optional[List[float]]:
         """Get resume embedding by file_id"""
