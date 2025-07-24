@@ -2,6 +2,7 @@ from openai import OpenAI
 import requests
 from app.core.config import LLAMA_SERVER, OPENAI_API_KEY
 from typing import Dict
+from app.core.models.pydantic_models import Feedback
 from app.services.llm_prompts import BASE_PROMPT
 import json
 
@@ -49,7 +50,7 @@ class ProcessLLM:
         except Exception as e:
             return {"error": f"Error processing resume: {str(e)}"}
 
-    def __process_with_openai(self, text: str, prompt: str) -> Dict:
+    def __process_with_openai(self, text: str, prompt: str) -> Feedback:
         """Process resume text using the OpenAI API"""
         if not self.__test_openai_connection():
             return {"error": "Unable to connect to OpenAI server."}
@@ -67,8 +68,9 @@ class ProcessLLM:
             )
             try:
                 json_response = json.loads(response.choices[0].message.content)
-                print(json_response)
-                return json_response
+                # print(json.dumps(json_response, indent=2))
+                feedback = Feedback(**json_response)
+                return feedback
             except json.JSONDecodeError as e:
                 return {"error": f"Failed to parse JSON response: {str(e)}"}
         except Exception as e:

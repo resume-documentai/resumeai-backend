@@ -21,8 +21,8 @@ resume_router = APIRouter()
 # Endpoint to get all resumes for a specific user
 @resume_router.get("/", response_model=None)
 def get_all_resumes(
-    resume_repository: ResumeRepository = Depends(get_resume_repository),
     user_id: Optional[str] = Query(None),
+    resume_repository: ResumeRepository = Depends(get_resume_repository),
 ):
     """
     Get all resumes for a specific user.
@@ -38,8 +38,11 @@ def get_all_resumes(
 
     try:
         # Print userId for debugging purposes
-        print(user_id)
-        return resume_repository.get_user_resumes(user_id)
+        # print
+        # (user_id)
+        resumes_list = resume_repository.get_user_resumes(user_id)
+
+        return resumes_list
     except Exception as e:
         print(str(e))
         raise HTTPException(status_code=500, detail=str(e))
@@ -47,8 +50,8 @@ def get_all_resumes(
 # Endpoint to get a specific resume by user_id and file_id
 @resume_router.post("/file", response_model=None)
 def get_resume(
-    resume_repository: ResumeRepository = Depends(get_resume_repository),
     file_id: Optional[str] = Form(...),
+    resume_repository: ResumeRepository = Depends(get_resume_repository),
 ):
     """
     Get a specific resume by user_id and file_id.
@@ -60,9 +63,9 @@ def get_resume(
         dict: A dictionary containing the extracted text and LLM feedback.
     """
     try:
-        resume = resume_repository.get_resume_by_file_id(file_id)
-        resume_text = resume.get("resume_text")
-        resume_feedback = resume.get("feedback")
+        resume = resume_repository.get_resume(file_id)
+        resume_text = resume.resume_text
+        resume_feedback = resume.feedback.feedback
         return {"extracted_text": resume_text, "llm_feedback": resume_feedback}
     except Exception as e:
         print(str(e))
@@ -71,12 +74,12 @@ def get_resume(
 # Endpoint to upload a resume
 @resume_router.post("/upload", response_model=None)
 async def upload_resume(
-    resume_repository: ResumeRepository = Depends(get_resume_repository),
-    file_processing: FileProcessing = Depends(get_file_processing),
-    process_llm: ProcessLLM = Depends(get_process_llm),
     file: UploadFile = File(...),
     model_option: str = Form("openai"),
     user_id : Optional[str] = Form(None),
+    resume_repository: ResumeRepository = Depends(get_resume_repository),
+    file_processing: FileProcessing = Depends(get_file_processing),
+    process_llm: ProcessLLM = Depends(get_process_llm),
 ):
     """
     Upload a resume and extract information from it.
@@ -101,6 +104,9 @@ async def upload_resume(
         with open(temp_path, "wb") as f:
             file_bytes = await file.read()
             f.write(file_bytes)
+        
+        #Since file_id is a sha256 hash of the file content, we can use it to check if the file already exists
+        file_id = file_processing.generate_file_id(file_bytes)
 
         # Extract information from file
         txt = file_processing.extract(temp_path, file_ext)    
@@ -110,19 +116,28 @@ async def upload_resume(
             raise HTTPException(status_code=400, detail="Unsupported file type")
 
         if user_id:
-            resume = resume_repository.get_resume(user_id, original_filename, txt)
+            resume = resume_repository.get_resume(file_id)
             if resume:
-                return {"extracted_text": resume[0], "llm_feedback": resume[1]}
-        
+                return {"extracted_text": resume.resume_text, "feedback": resume.feedback.feedback}
+                    
         document = DOCUMENT_TEMPLATE.format(
             document=txt,
             feedback={},
             chat_history=""
         )
 
-        llm_feedback = process_llm.process(document, option=model_option, prompt=BASE_PROMPT)
+        llm_feedback = process_llm.process(document, model=model_option, prompt=BASE_PROMPT)
+        embedding = file_processing.generate_embeddings(txt)
         
-        resume_repository.save_resume_feedback(user_id, original_filename, txt, llm_feedback, file_bytes, file_processing.generate_embeddings(txt))
+        resume_repository.save_resume_feedback(
+            user_id=user_id,
+            file_id=file_id,
+            file_name=original_filename,
+            resume_text=txt,
+            feedback=llm_feedback,
+            embedding=embedding
+        )
+        
         return {"extracted_text": txt, "feedback": llm_feedback}
     except Exception as e:
         if os.path.exists(temp_path):
@@ -148,26 +163,25 @@ async def get_similar_resumes(
     """
     try:
         query_embedding = file_processing.generate_embeddings(query)
-        query_embedding = np.array(query_embedding[0])
+        query_embedding = np.array(query_embedding)
         
         user_resumes = resume_repository.get_user_resumes(user_id)
         n = len(user_resumes)
 
-        similarties = []
+        similarities = []
         for doc in user_resumes:
-            embedding = np.array(doc["embedding"][0])
-            
+            embedding = np.array(doc.embedding)
+
             score = np.dot(query_embedding, embedding) / (np.linalg.norm(query_embedding) * np.linalg.norm(embedding))
-            heapq.heappush(similarties, (-score, doc))
-    
+            heapq.heappush(similarities, (-score, doc))
         results = []
-        for score, doc in [heapq.heappop(similarties) for _ in range(n)]:
+        for score, doc in [heapq.heappop(similarities) for _ in range(n)]:
             results.append({
-                "id": doc["id"],
-                "file_id": doc["file_id"],
-                "file_name": doc["file_name"],
-                "created_at": doc["created_at"],
-                "embedding": doc["embedding"],
+                "id": doc.id,
+                "file_id": doc.file_id,
+                "file_name": doc.file_name,
+                "created_at": doc.created_at,
+                "embedding": doc.embedding,
                 "score": -score # negative score because heapq is a min heap
             })
         

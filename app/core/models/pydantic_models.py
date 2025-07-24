@@ -1,4 +1,5 @@
 from typing import List
+from datetime import datetime
 from pydantic import BaseModel, ConfigDict
 
 def config(cls):
@@ -45,3 +46,11 @@ class UserRegister(BaseModel):
 class UserLogin(BaseModel):
     email: str
     password: str
+
+@config
+class SimpleResume(BaseModel):
+    id: str
+    file_id: str
+    file_name: str
+    created_at: datetime
+    embedding: List[float]
