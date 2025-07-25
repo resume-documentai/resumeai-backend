@@ -1,70 +1,45 @@
 import pytest
-import os
 from fastapi.testclient import TestClient
 from main import app
-from app.core.utils.security import create_jwt_token
-from app.core.config import TEST_MODE
-from app.core.dependencies import db_instance, get_mock_database, set_test_mode
-from bson import ObjectId
+from unittest.mock import MagicMock
+
+from app.services.security_repository import SecurityRepository
+from app.services.resume_repository import ResumeRepository
+from app.core.dependencies import get_resume_repository, get_security_repository
+from app.core.database import Database
+
 
 @pytest.fixture(scope="module")
-def test_client():
+def mock_session():
+    session = MagicMock()
+    return session
+
+@pytest.fixture(scope="module")
+def mock_db(mock_session):
+    """ Mock resume repository for an empty database """
+    mock_db = MagicMock(spec=Database)
+    mock_db.get_session.return_value = mock_session
+    return mock_db
+
+@pytest.fixture(scope="module")
+def mock_resume_repository(mock_db):
+    """ Mock resume repository for an empty database """
+    mock_resume_repository = ResumeRepository(mock_db)
+    return mock_resume_repository
+
+@pytest.fixture(scope="module")
+def mock_security_repository(mock_db):
+    """ Mock security repository for an empty database """
+    mock_security_repository= SecurityRepository(mock_db)
+    return mock_security_repository
+
+@pytest.fixture(scope="module")
+def test_client(mock_resume_repository, mock_security_repository):
     """Create a test client for the FastAPI app"""  
-    os.environ["TEST_MODE"] = "true"
-    return TestClient(app)
-
-@pytest.fixture(scope="session")
-def test_user():
-    """Create a test user for authentication tests"""
-    return {
-        "id": "test_user_id",
-        "email": "test@example.com",
-        "password": "test_password"
-    }
-
-@pytest.fixture(scope="session")
-def test_token(test_user):
-    """Create a JWT token for testing"""
-    return create_jwt_token(test_user["id"])
-
-@pytest.fixture(scope="session")
-def test_resume():
-    """Create a test resume for chat tests"""
-    return {
-        "_id": ObjectId("000000000000000000000001"),
-        "resume_text": "Test resume content",
-        "feedback": "Test feedback",
-        "chat_history": []
-    }
+    app.dependency_overrides[get_resume_repository] = lambda: mock_resume_repository
+    app.dependency_overrides[get_security_repository] = lambda: mock_security_repository
     
-@pytest.fixture(scope="session")
-def test_resume_with_chat():
-    """Create a test chat history for chat tests"""
-    return {    
-        "_id": ObjectId("000000000000000000000002"),
-        "resume_text": "Test resume content",
-        "feedback": "Test feedback",
-        "chat_history": [
-            {"type": "user", "text": "Hello"},
-            {"type": "bot", "text": "Hi there!"}
-        ]
-    }
+    yield TestClient(app)
+    
+    app.dependency_overrides.clear()
 
-
-@pytest.fixture(scope="function")
-def mock_mongodb():
-    """Create a mock database for testing"""
-    from app.core.dependencies import db_instance, get_mock_database
-    
-    # Save original database instance
-    original_db = db_instance
-    
-    # Create mock database
-    mock_db = get_mock_database()
-    mock_db.users_collection.find_one.return_value = test_user
-    mock_db.resume_collection.find_one.return_value = test_resume_with_chat
-    
-    yield mock_db
-    
-    # Restore original database instance after tests
-    db_instance = original_db

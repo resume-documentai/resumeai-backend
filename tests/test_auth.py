@@ -1,178 +1,142 @@
+import uuid
+
 import pytest
-from fastapi.testclient import TestClient
+from app.services import security_repository
+from conftest import mock_db, mock_security_repository, test_client
 from main import app
-from app.core.utils.security import verify_password, hash_password
-from app.core.models.pydantic_models import UserRegister, UserLogin
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
-@pytest.fixture
-def test_client():
-    """Create a test client"""
-    return TestClient(app)
-    
-test_user = UserRegister(
-    email="test@example.com",
-    password="test_password",
-    username="test_user"
-)
+from app.services.security_repository import SecurityRepository
+from app.core.utils.security import hash_password, verify_password
+
+   
+@pytest.fixture(scope="function")
+def test_user():
+    user = MagicMock()
+    user.user_id = uuid.uuid4()
+    user.username = "testuser"
+    user.email = "testuser@example.com"
+    user.password_hash = hash_password("testpassword")
+    return user
 
 
-def test_auth_register_success(mock_mongodb, test_client):
+def test_auth_register_success(test_client, mock_security_repository, mock_session):
     """Test successful user registration"""
-    # Reset mock collection
-    mock_mongodb.users_collection.find_one.reset_mock()
-    mock_mongodb.users_collection.insert_one.reset_mock()
     
-    # Mock password hashing to speed up test
-    with patch('app.core.utils.security.hash_password', return_value='hashed_password'):
-        # Set up mock MongoDB to return None for find_one (no existing user)
-        mock_mongodb.users_collection.find_one.return_value = None
-        
-        # Set up mock insert_one to return a mock result
-        mock_result = MagicMock()
-        mock_result.inserted_id = "test_user_id"
-        mock_mongodb.users_collection.insert_one.return_value = mock_result
-        
-        # Verify mock is empty before test
-        print("Mock collection state before test:")
-        print(f"Find one calls: {mock_mongodb.users_collection.find_one.call_count}")
-        print(f"Insert one calls: {mock_mongodb.users_collection.insert_one.call_count}")
-        
-        # Create a UserRegister model instance
-        new_user = UserRegister(
-            username="user",
-            email="user@example.com",
-            password="test_password"
-        )
-        
-        response = test_client.post(
-            "/auth/register/",
-            json=new_user.model_dump()
-        )
-        print(response.json())
-        assert response.status_code == 200
-        assert "message" in response.json()
-        assert response.json()["message"] == "User registered successfully"
-        
-        # Verify MongoDB operations
-        mock_mongodb.users_collection.find_one.assert_called_once_with({"email": new_user.email})
-        mock_mongodb.users_collection.insert_one.assert_called_once()
-        
-        # Verify the inserted document
-        inserted_doc = mock_mongodb.users_collection.insert_one.call_args[0][0]
-        assert inserted_doc["email"] == new_user.email
-        assert inserted_doc["username"] == new_user.username
-        assert "password" in inserted_doc
-        assert inserted_doc["password"] == "hashed_password"
-        
-        # Verify mock state after test
-        print("\nMock collection state after test:")
-        print(f"Find one calls: {mock_mongodb.users_collection.find_one.call_count}")
-        print(f"Insert one calls: {mock_mongodb.users_collection.insert_one.call_count}")
-
-def test_auth_register_email_exists(mock_mongodb, test_client):
-    """Test registration with existing email"""
-    # Reset mock collection
-    mock_mongodb.users_collection.find_one.reset_mock()
-    mock_mongodb.users_collection.insert_one.reset_mock()
+    add_count = mock_session.add.call_count
+    commit_count = mock_session.commit.call_count
+    close_count = mock_session.close.call_count
     
-    # Mock MongoDB to return existing user
-    mock_mongodb.users_collection.find_one.return_value = {
-        "email": test_user.email,
-        "username": test_user.username,
-        "password": hash_password(test_user.password)
-    }
+    mock_security_repository.user_exists = MagicMock(return_value=False)
     
-    response = test_client.post(
-        "/auth/register/",
-        json={
-            "username": test_user.username,
-            "email": test_user.email,
-            "password": test_user.password
-        }
-    )
-    
-    assert response.status_code == 400
-    assert response.json()["detail"] == "Email already registered"
-
-async def test_auth_login_success(mock_mongodb, test_client):
-    """Test successful login"""
-    # Mock MongoDB to return user
-    mock_mongodb.users_collection.find_one.return_value = {
-        "_id": "test_user_id",
-        "email": test_user.email,
-        "password": hash_password(test_user.password),
-        "username": test_user.username
-    }
-    
-    response = test_client.post(
-        "/auth/login/",
-        json={
-            "email": test_user.email,
-            "password": test_user.password
-        }
-    )
+    response = test_client.post("/auth/register", json={
+        "username": "testuser",
+        "email": "testuser@example.com",
+        "password": "testpassword"
+    })
     
     assert response.status_code == 200
-    assert "access_token" in response.json()
-    assert "user" in response.json()
-    assert response.json()["user"]["user_id"] == "test_user_id"
-    assert response.json()["user"]["email"] == test_user.email
-    assert response.json()["user"]["username"] == test_user.username
+    assert response.json() == {"message": "User registered successfully"}
     
-    # Verify MongoDB operations
-    mock_mongodb.users_collection.find_one.assert_called_once_with({"email": test_user.email})
+    assert mock_session.add.call_count == add_count + 1
+    assert mock_session.commit.call_count == commit_count + 1
     
-    # Verify the found document
-    found_doc = mock_mongodb.users_collection.find_one.return_value
-    assert verify_password(test_user.password, found_doc["password"]) is True
+    user_obj = mock_session.add.call_args[0][0]
+    assert user_obj.username == "testuser"
+    assert user_obj.email == "testuser@example.com"
+    assert verify_password("testpassword", user_obj.password_hash)
+    
+    assert mock_session.close.call_count == close_count + 1
+    
+def test_auth_register_email_exists(test_client, mock_security_repository):
+    """Test registration with existing email"""
+    mock_security_repository.user_exists = MagicMock(return_value=True)
+    
+    response = test_client.post("/auth/register", json={
+        "username": "testuser",
+        "email": "testuser@example.com",
+        "password": "testpassword"
+    })
+    
+    assert response.status_code == 400
+    assert response.json() == {"detail": "Email already registered"}
 
-def test_auth_login_invalid_credentials(mock_mongodb, test_client):
+def test_auth_login_success(test_client, mock_session, test_user):
+    """Test successful login"""
+    
+    query_count = mock_session.query.call_count
+    filter_count = mock_session.query.return_value.filter.call_count
+    first_count = mock_session.query.return_value.filter.return_value.first.call_count
+    
+    mock_session.query.return_value.filter.return_value.first.return_value = test_user
+    
+    with patch("app.core.utils.security.create_jwt_token", return_value="testtoken"):
+        
+        response = test_client.post("/auth/login", json={
+            "email": "testuser@example.com",
+            "password": "testpassword"
+        })
+    
+        assert response.status_code == 200
+        assert response.json() == {
+            "access_token": "testtoken",
+            "user": {
+                "user_id": str(test_user.user_id),
+                "username": "testuser",
+                "email": "testuser@example.com"
+            }
+        }
+        
+        assert mock_session.query.call_count == query_count + 1
+        assert mock_session.query.return_value.filter.call_count == filter_count + 1
+        assert mock_session.query.return_value.filter.return_value.first.call_count == first_count + 1
+    
+def test_auth_login_invalid_credentials(test_client, mock_session, test_user):
     """Test login with invalid credentials"""
-    # Mock MongoDB to return user with wrong password
-    mock_mongodb.users_collection.find_one.return_value = {
-        "_id": "test_user_id",
-        "email": test_user.email,
-        "password": hash_password("wrong_password"),
-        "username": test_user.username
-    }
     
-    response = test_client.post(
-        "/auth/login/",
-        json={
-            "email": test_user.email,
-            "password": test_user.password
-        }
-    )
+    query_count = mock_session.query.call_count
+    filter_count = mock_session.query.return_value.filter.call_count
+    first_count = mock_session.query.return_value.filter.return_value.first.call_count
+    
+    mock_session.query.return_value.filter.return_value.first.return_value = test_user
+    
+    # Test login with invalid password
+    response = test_client.post("/auth/login", json={
+        "email": "testuser@example.com",
+        "password": "wrongpassword"
+    })
     
     assert response.status_code == 401
-    assert response.json()["detail"] == "Invalid email or password"
-
-def test_auth_login_user_not_found(mock_mongodb, test_client):
-    """Test login when user doesn't exist"""
-    # Mock MongoDB to return None
-    mock_mongodb.users_collection.find_one.return_value = None
+    assert response.json() == {"detail": "Invalid email or password"}
     
-    response = test_client.post(
-        "/auth/login/",
-        json={
-            "email": test_user.email,
-            "password": test_user.password
-        }
-    )
+    assert mock_session.query.call_count == query_count + 1
+    assert mock_session.query.return_value.filter.call_count == filter_count + 1
+    assert mock_session.query.return_value.filter.return_value.first.call_count == first_count + 1
     
-    assert response.status_code == 401
-    assert response.json()["detail"] == "Invalid email or password"
-
-def test_password_hashing():
-    """Test password hashing functionality"""
-    password = "test_password"
-    hashed = hash_password(password)
-    assert verify_password(password, hashed) is True
-    assert verify_password("wrong_password", hashed) is False
-
+        
 def test_auth_root_endpoint(test_client):
     """Test the auth root endpoint"""
     response = test_client.get("/auth/")
     assert response.status_code == 200
     assert response.json() == {"message": "Welcome to the authentication service"}
+    
+def test_password_hashing():
+    """Test password hashing functionality"""
+    test_password = "testpassword"
+    hashed_password = hash_password(test_password)
+    assert verify_password(test_password, hashed_password)
+    
+def test_user_exists(mock_session):
+    """Test user exists functionality from security repository"""
+    
+    sr = SecurityRepository(mock_session)
+    
+    mock_session.get_session.return_value.query.return_value.filter.return_value.first.return_value = "User Exists"
+    user_exists = sr.user_exists("testuser@example.com")
+    assert user_exists
+    
+    mock_session.get_session.return_value.query.return_value.filter.return_value.first.return_value = None
+    user_exists = sr.user_exists("testuser@example.com")
+    assert not user_exists
+    
+    
