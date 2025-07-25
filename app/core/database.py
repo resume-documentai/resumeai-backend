@@ -1,7 +1,6 @@
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from threading import Lock
-from app.core.config import TEST_MODE
 import os
 
 
@@ -29,11 +28,6 @@ class Database:
             return
         
         try:
-            if TEST_MODE:
-                # In test mode, just set up mock collections
-                self._session = type('MockSession', (), {})()
-                self._initialized = True
-                return
             db_url = uri or os.getenv("DATABASE_URL")
             if not db_url:
                 raise ValueError("DATABASE_URL environment variable is required")
