@@ -69,8 +69,12 @@ class ProcessLLM:
             try:
                 json_response = json.loads(response.choices[0].message.content)
                 # print(json.dumps(json_response, indent=2))
-                feedback = Feedback(**json_response)
-                return feedback
+                try:
+                    feedback = Feedback(**json_response)
+                    return feedback
+                except Exception as e:
+                    # feedback is not a json object so return regular string
+                    return json_response
             except json.JSONDecodeError as e:
                 return {"error": f"Failed to parse JSON response: {str(e)}"}
         except Exception as e:
