@@ -3,82 +3,14 @@ import uuid
 from datetime import datetime
 
 import pytest
-from conftest import mock_db, mock_security_repository, test_client
+from conftest import mock_db, mock_security_repository, test_client, test_resume, test_resume_feedback, test_resume_chat_history, test_resume_embedding
 from main import app
 from unittest.mock import MagicMock, patch
 import numpy as np
 
 from app.services.resume_repository import ResumeRepository
 from app.core.utils.security import hash_password, verify_password
-from app.core.models.pydantic_models import FeedbackCategory, Feedback, ChatSession
 from app.services.file_processing import FileProcessing
-
-@pytest.fixture(scope="function")
-def test_resume():
-    resume = MagicMock()
-    resume.id = uuid.uuid4()
-    resume.user_id = uuid.uuid4()
-    resume.file_id = uuid.uuid4()
-    resume.file_name = "test_resume.pdf"
-    resume.resume_text = "This is a test resume text."
-    resume.general_feedback = "This is a test general feedback."
-    resume.overall_score = 4.5
-    resume.created_at = datetime.now()
-    return resume
-
-@pytest.fixture(scope="function")
-def test_resume_feedback(test_resume):
-    category_data = FeedbackCategory(
-        score=4.5,
-        strengths=["Strength 1", "Strength 2"],
-        weaknesses=["Weakness 1", "Weakness 2"],
-        suggestions=["Suggestion 1", "Suggestion 2"]
-    )
-
-    feedback_data = Feedback(
-        structure_organization= category_data,
-        clarity_conciseness= category_data,
-        grammar_spelling= category_data,
-        impact_accomplishments= category_data,
-        ats_readability= category_data,
-        overall_score=4.5,
-        general_feedback= "This is a test general feedback."
-    )
-    
-    test_data = {
-        "id": test_resume.id,
-        "feedback": feedback_data,
-    }
-    
-    resume_feedback = MagicMock(**test_data)
-    return resume_feedback
-
-@pytest.fixture(scope="function")
-def test_resume_chat_history(test_resume):
-    chat_history = [
-        {"type": "user", "text": "Hello"},
-        {"type": "bot", "text": "Hi there!"}
-    ]
-    
-    test_data = {
-        "id": test_resume.id,
-        "chat_history": chat_history,
-    }
-    
-    resume_chat_history = MagicMock(**test_data)
-    return resume_chat_history
-
-@pytest.fixture(scope="function")
-def test_resume_embedding(test_resume):
-    embedding = np.zeros(1536)
-    
-    test_data = {
-        "id": test_resume.id,
-        "embedding": embedding,
-    }
-    
-    resume_embedding = MagicMock(**test_data)
-    return resume_embedding
 
 def test_get_all_resumes_success(test_client, mock_session, test_resume):
     """ Test successful retrieval of all resumes through resume root endpoint"""  
