@@ -38,8 +38,7 @@ def get_all_resumes(
 
     try:
         # Print userId for debugging purposes
-        # print
-        # (user_id)
+        # print(user_id)
         resumes_list = resume_repository.get_user_resumes(user_id)
 
         return resumes_list
