@@ -1,70 +1,117 @@
+import uuid
+from datetime import datetime
+
 import pytest
-import os
+import numpy as np
 from fastapi.testclient import TestClient
 from main import app
-from app.core.utils.security import create_jwt_token
-from app.core.config import TEST_MODE
-from app.core.dependencies import db_instance, get_mock_database, set_test_mode
-from bson import ObjectId
+from unittest.mock import MagicMock
+
+from app.services.security_repository import SecurityRepository
+from app.services.resume_repository import ResumeRepository
+from app.core.dependencies import get_resume_repository, get_security_repository
+from app.core.database import Database
+from app.core.models.pydantic_models import FeedbackCategory, Feedback, ChatSession
+
 
 @pytest.fixture(scope="module")
-def test_client():
+def mock_session():
+    session = MagicMock()
+    return session
+
+@pytest.fixture(scope="module")
+def mock_db(mock_session):
+    """ Mock resume repository for an empty database """
+    mock_db = MagicMock(spec=Database)
+    mock_db.get_session.return_value = mock_session
+    return mock_db
+
+@pytest.fixture(scope="module")
+def mock_resume_repository(mock_db):
+    """ Mock resume repository for an empty database """
+    mock_resume_repository = ResumeRepository(mock_db)
+    return mock_resume_repository
+
+@pytest.fixture(scope="module")
+def mock_security_repository(mock_db):
+    """ Mock security repository for an empty database """
+    mock_security_repository= SecurityRepository(mock_db)
+    return mock_security_repository
+
+@pytest.fixture(scope="module")
+def test_client(mock_resume_repository, mock_security_repository):
     """Create a test client for the FastAPI app"""  
-    os.environ["TEST_MODE"] = "true"
-    return TestClient(app)
-
-@pytest.fixture(scope="session")
-def test_user():
-    """Create a test user for authentication tests"""
-    return {
-        "id": "test_user_id",
-        "email": "test@example.com",
-        "password": "test_password"
-    }
-
-@pytest.fixture(scope="session")
-def test_token(test_user):
-    """Create a JWT token for testing"""
-    return create_jwt_token(test_user["id"])
-
-@pytest.fixture(scope="session")
-def test_resume():
-    """Create a test resume for chat tests"""
-    return {
-        "_id": ObjectId("000000000000000000000001"),
-        "resume_text": "Test resume content",
-        "feedback": "Test feedback",
-        "chat_history": []
-    }
+    app.dependency_overrides[get_resume_repository] = lambda: mock_resume_repository
+    app.dependency_overrides[get_security_repository] = lambda: mock_security_repository
     
-@pytest.fixture(scope="session")
-def test_resume_with_chat():
-    """Create a test chat history for chat tests"""
-    return {    
-        "_id": ObjectId("000000000000000000000002"),
-        "resume_text": "Test resume content",
-        "feedback": "Test feedback",
-        "chat_history": [
-            {"type": "user", "text": "Hello"},
-            {"type": "bot", "text": "Hi there!"}
-        ]
-    }
+    yield TestClient(app)
+    
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture(scope="function")
-def mock_mongodb():
-    """Create a mock database for testing"""
-    from app.core.dependencies import db_instance, get_mock_database
+def test_resume():
+    resume = MagicMock()
+    resume.id = uuid.uuid4()
+    resume.user_id = uuid.uuid4()
+    resume.file_id = uuid.uuid4()
+    resume.file_name = "test_resume.pdf"
+    resume.resume_text = "This is a test resume text."
+    resume.general_feedback = "This is a test general feedback."
+    resume.overall_score = 4.5
+    resume.created_at = datetime.now()
+    return resume
+
+@pytest.fixture(scope="function")
+def test_resume_feedback(test_resume):
+    category_data = FeedbackCategory(
+        score=4.5,
+        strengths=["Strength 1", "Strength 2"],
+        weaknesses=["Weakness 1", "Weakness 2"],
+        suggestions=["Suggestion 1", "Suggestion 2"]
+    )
+
+    feedback_data = Feedback(
+        structure_organization= category_data,
+        clarity_conciseness= category_data,
+        grammar_spelling= category_data,
+        impact_accomplishments= category_data,
+        ats_readability= category_data,
+        overall_score=4.5,
+        general_feedback= "This is a test general feedback."
+    )
     
-    # Save original database instance
-    original_db = db_instance
+    test_data = {
+        "id": test_resume.id,
+        "feedback": feedback_data,
+    }
     
-    # Create mock database
-    mock_db = get_mock_database()
-    mock_db.users_collection.find_one.return_value = test_user
-    mock_db.resume_collection.find_one.return_value = test_resume_with_chat
+    resume_feedback = MagicMock(**test_data)
+    return resume_feedback
+
+@pytest.fixture(scope="function")
+def test_resume_chat_history(test_resume):
+    chat_history = [
+        {"type": "user", "text": "Hello"},
+        {"type": "bot", "text": "Hi there!"}
+    ]
     
-    yield mock_db
+    test_data = {
+        "id": test_resume.id,
+        "chat_history": chat_history,
+    }
     
-    # Restore original database instance after tests
-    db_instance = original_db
+    resume_chat_history = MagicMock(**test_data)
+    return resume_chat_history
+
+@pytest.fixture(scope="function")
+def test_resume_embedding(test_resume):
+    embedding = np.zeros(1536)
+    
+    test_data = {
+        "id": test_resume.id,
+        "embedding": embedding,
+    }
+    
+    resume_embedding = MagicMock(**test_data)
+    return resume_embedding

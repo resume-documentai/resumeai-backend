@@ -1,137 +1,114 @@
 import pytest
-from bson import ObjectId
-from typing import List
-from app.core.utils.models import Message, ChatSession
-from unittest.mock import patch
+from uuid import uuid4
+from unittest.mock import MagicMock, patch
+from app.core.models.pydantic_models import Message, ChatSession, Feedback, FeedbackCategory
+from conftest import mock_resume_repository, test_client, test_resume, test_resume_feedback
 
-@pytest.mark.asyncio
-async def test_start_chat_existing_session(test_client, test_resume_with_chat):
+@pytest.fixture(scope="function")
+def test_chat_session(test_resume, test_resume_feedback):
+    return ChatSession(
+        messages=[
+            Message(type="user", text="Hello"),
+            Message(type="bot", text="Hi there!")
+        ],
+        resume=test_resume.resume_text,
+        feedback=test_resume_feedback.feedback,
+    )
+
+@pytest.fixture(scope="function")
+def test_resume_with_chat(test_resume, test_chat_session):
+    test_resume.chat_history = test_chat_session.messages
+    test_resume.feedback = test_chat_session.feedback
+    test_resume.resume_text = test_chat_session.resume
+    return test_resume
+
+def test_start_chat_existing_session(test_client, mock_session, test_resume, test_resume_with_chat):
     """Test starting a chat session with existing chat history"""
-    # Setup mock database
-    mock_resume = test_resume_with_chat
+
+    mock_session.query.return_value.join.return_value.join.return_value.filter.return_value.first.return_value = test_resume_with_chat
     
-    # Mock the resume repository method directly
-    with patch('app.services.resume_repository.ResumeRepository.get_resume_by_file_id') as mock_get_resume:
-        mock_get_resume.return_value = mock_resume
-        
-        # Test the endpoint
-        response = test_client.get(f"/chat/start-chat?file_id={str(mock_resume['_id'])}")
-        assert response.status_code == 200
+    response = test_client.get(f"/chat/start-chat?file_id={test_resume.file_id}")
+    
+    # Verify response
+    assert response.status_code == 200
+    response_data = response.json()
+    assert len(response_data) == 2  # Should have 2 messages from the chat history
+    assert response_data[0]["type"] == "user"
+    assert response_data[0]["text"] == "Hello"
+    assert response_data[1]["type"] == "bot"
+    assert response_data[1]["text"] == "Hi there!"
 
-        # Verify response
-        session_data = response.json()
-        assert len(session_data) == 2  # Existing chat history
-        assert session_data[0]["type"] == "user"
-        assert session_data[0]["text"] == "Hello"
-        assert session_data[1]["type"] == "bot"
-        assert session_data[1]["text"] == "Hi there!"
-        
-        # Verify that the correct method was called
-        mock_get_resume.assert_called_once_with(str(mock_resume['_id']))
-
-@pytest.mark.asyncio
-async def test_start_chat_new_session(test_client, test_resume):
+def test_start_chat_new_session(test_client, mock_session, test_resume, test_resume_with_chat):
     """Test starting a chat session with no existing history"""
-    # Setup mock database without chat history
-    mock_resume = test_resume
+    test_resume_with_chat.chat_history = []
+    mock_session.query.return_value.join.return_value.join.return_value.filter.return_value.first.return_value = test_resume_with_chat
     
-    with patch('app.services.resume_repository.ResumeRepository.get_resume_by_file_id') as mock_get_resume:
-        mock_get_resume.return_value = mock_resume
+    response = test_client.get(f"/chat/start-chat?file_id={test_resume.file_id}")
     
-        # Test the endpoint
-        response = test_client.get(f"/chat/start-chat?file_id={str(mock_resume['_id'])}")
-        assert response.status_code == 200
-        
-        # Verify response
-        session_data = response.json()
-        assert len(session_data) == 0 # No existing chat history
+    assert response.status_code == 200
+    assert response.json() == []  # Should return empty list for new session
 
-
-@pytest.mark.asyncio
-async def test_chat_message(test_client, mock_mongodb, test_resume_with_chat, test_token):
+def test_chat_message(test_client, mock_session, test_resume, test_resume_with_chat, test_resume_feedback):
     """Test sending a chat message with mocked OpenAI response"""
-    # Setup mock database
-    mock_mongodb.resume_collection.find_one.return_value = test_resume_with_chat
     
-    # Mock OpenAI response
-    mock_response = "**Feedback:**\n\n- Your resume is GOOD."
+    add_count = mock_session.add.call_count
+    commit_count = mock_session.commit.call_count
     
-    # Start a chat session
-    start_response = test_client.get(f"/chat/start-chat?file_id={str(test_resume_with_chat['_id'])}")
-    assert start_response.status_code == 200
+    test_resume.feedback = test_resume_feedback.feedback
+    test_resume.chatsession = test_resume_with_chat
     
-    # Send a chat message
+    mock_session.query.return_value.options.return_value.filter.return_value.first.return_value = test_resume
+
+    mock_response = "This is a test response from the AI."
     with patch('app.services.process_llm.ProcessLLM.process') as mock_process:
-        mock_process.return_value = mock_response
-        # Patch save_resume_chat_history to update our test fixture
-        with patch('app.services.resume_repository.ResumeRepository.save_resume_chat_history') as mock_save:
-            def update_chat_history(file_id: str, chat_history: List[dict]):
-                test_resume_with_chat["chat_history"] = chat_history
-            mock_save.side_effect = update_chat_history
-            message = "What do you think about my resume?"
-            chat_response = test_client.post(
-                "/chat/",
-                data={
-                    "file_id": str(test_resume_with_chat['_id']),
-                    "message": message,
-                    "model": "openai"
-                },
-                headers={"Authorization": f"Bearer {test_token}"}
-            )
-            
-            assert chat_response.status_code == 200
-            response_data = chat_response.json()
-            
-            # Verify response structure
-            assert "response" in response_data
-            assert response_data["response"] == mock_response
-            
-            
-            # Verify chat session data
-            session = test_resume_with_chat["chat_history"]
-            print(session)
-            assert len(session) >= 3  # Two original messages + new exchange
-            
-            # Verify new messages in session
-            assert session[-2]["type"] == "user"
-            assert session[-2]["text"] == message
-            assert session[-1]["type"] == "bot"
-            assert session[-1]["text"] == mock_response
+        mock_process.return_value = {"response": mock_response}
+        
+        response = test_client.post(
+            "/chat/",
+            data={
+                "file_id": str(test_resume.file_id),
+                "message": "Test message",
+                "model": "openai"
+            }
+        )
+    # Verify response
+    assert response.status_code == 200
+    response_data = response.json()
+    assert response_data["response"] == mock_response
+    
+    # Verify session was updated with new messages
+    assert mock_session.add.call_count == add_count
+    assert mock_session.commit.call_count == commit_count + 1
 
-@pytest.mark.asyncio
-async def test_chat_message_missing_file_id(test_client, test_token):
+def test_chat_message_missing_file_id(test_client):
     """Test sending a chat message without file_id"""
-    # Send chat message without file_id
-    message = "What do you think about my resume?"
-    chat_response = test_client.post(
+    response = test_client.post(
         "/chat/",
         data={
-            "message": message,
+            "message": "Test message",
             "model": "openai"
-        },
-        headers={"Authorization": f"Bearer {test_token}"}
+        }
     )
     
-    assert chat_response.status_code == 422  # Unprocessable entity
+    # Should return 422 for validation error
+    assert response.status_code == 422
+    assert "field required" in str(response.json()["detail"][0]["msg"]).lower()
 
-@pytest.mark.asyncio
-async def test_chat_message_invalid_file_id(test_client, mock_mongodb, test_token):
+def test_chat_message_invalid_file_id(test_client, mock_session):
     """Test sending a chat message with invalid file_id"""
-    # Setup mock database to return None
-    mock_mongodb.resume_collection.find_one.return_value = None
-    invalid_id = ObjectId("000000000000000000000003")
+    # Setup mock to return None (resume not found)
+    with patch('app.services.resume_repository.ResumeRepository.get_resume') as mock_get_resume:
+        mock_get_resume.return_value = None
+        invalid_file_id = str(uuid4())
+        response = test_client.post(
+            "/chat/",
+            data={
+                "file_id": invalid_file_id,
+                "message": "Test message",
+                "model": "openai"
+            }
+        )
     
-    # Send chat message with invalid file_id
-    message = "What do you think about my resume?"
-    chat_response = test_client.post(
-        "/chat/",
-        data={
-            "file_id": str(invalid_id),
-            "message": message,
-            "model": "openai"
-        },
-        headers={"Authorization": f"Bearer {test_token}"}
-    )
-    
-    assert chat_response.status_code == 404  # Internal Server Error
-    assert chat_response.json()['detail'] == "Resume not found."
+    # Should return 404 for non-existent resume
+    assert response.status_code == 404
+    assert "Resume not found" in response.json()["detail"]

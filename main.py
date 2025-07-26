@@ -3,15 +3,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.routes.resume import resume_router
 from app.api.v1.routes.chat import chat_router
 from app.api.v1.routes.auth import auth_router
-from app.core.database import Database
+from app.core.database import database
 
 
 async def lifespan(app: FastAPI):
     # Initialize database connection
-    db = Database()
-    db.initialize()
+    database.initialize()
     yield
-    db.close()
+    database.close()
 
 app = FastAPI(lifespan=lifespan)
 

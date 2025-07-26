@@ -1,6 +1,6 @@
 from typing import Dict
 from fastapi import APIRouter, HTTPException, Depends, Form, Query
-from app.core.utils.models import ChatSession, Message
+from app.core.models.pydantic_models import ChatSession, Message
 from app.core.dependencies import get_resume_repository, get_process_llm
 from app.services.process_llm import ProcessLLM
 from app.services.resume_repository import ResumeRepository
@@ -31,40 +31,40 @@ async def chat(
     try:
         if file_id not in chat_session:
             # Try to get resume data from database if not in session
-            resume_data = resume_repository.get_resume_by_file_id(file_id)
+            resume_data = resume_repository.get_resume(file_id)
             if not resume_data:
                 raise HTTPException(status_code=404, detail="Resume not found.")
-            
+
             # Create new chat session
-            session = ChatSession(
+            new_session = ChatSession(
                 messages=[],
-                resume=resume_data.get("resume_text", ""),
-                feedback=resume_data.get("feedback", {})
+                resume=resume_data.resume_text,
+                feedback=resume_data.feedback.feedback
             )
-            chat_session[file_id] = session
+            chat_session[file_id] = new_session
         else:
-            session = chat_session[file_id]
+            new_session = chat_session[file_id]
         
-        resume_text = session.resume
-        resume_feedback = session.feedback
+        resume_text = new_session.resume
+        resume_feedback = new_session.feedback
         
-        formatted_chat_history = "\n".join([f"{msg.type}: {msg.text}" for msg in session.messages])
+        formatted_chat_history = "\n".join([f"{msg.type}: {msg.text}" for msg in new_session.messages])
         formatted_chat_history += f"\nuser: {message}"
     
+
         document = DOCUMENT_TEMPLATE.format(
             document=resume_text,
             feedback=resume_feedback,
             chat_history=formatted_chat_history,
         )
-    
-        response = process_llm.process(text=document, model=model, prompt=CHAT_PROMPT) or ""
-        session.messages.append(Message(type="user", text=message))
-        session.messages.append(Message(type="bot", text=response.get("response")))
-        
-        session_messages_json = [msg.__dict__ for msg in session.messages]
+        llm_response = process_llm.process(text=document, model=model, prompt=CHAT_PROMPT) or ""
+        # print("DEBUG", new_session)
+        new_session.messages.append(Message(type="user", text=message))
+        new_session.messages.append(Message(type="bot", text=llm_response.get("response")))
+        session_messages_json = [msg.__dict__ for msg in new_session.messages]
 
         resume_repository.save_resume_chat_history(file_id, session_messages_json)
-        return response
+        return llm_response
     
     except HTTPException:
         raise
