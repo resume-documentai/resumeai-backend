@@ -31,24 +31,25 @@ async def chat(
     try:
         if file_id not in chat_session:
             # Try to get resume data from database if not in session
-            resume_data = resume_repository.get_resume_by_file_id(file_id)
+            resume_data = resume_repository.get_resume(file_id)
+            print(resume_data)
             if not resume_data:
                 raise HTTPException(status_code=404, detail="Resume not found.")
-            
+
             # Create new chat session
-            session = ChatSession(
+            new_session = ChatSession(
                 messages=[],
-                resume=resume_data.get("resume_text", ""),
-                feedback=resume_data.get("feedback", {})
+                resume=resume_data.resume_text,
+                feedback=resume_data.feedback
             )
-            chat_session[file_id] = session
+            chat_session[file_id] = new_session
         else:
-            session = chat_session[file_id]
+            new_session = chat_session[file_id]
         
-        resume_text = session.resume
-        resume_feedback = session.feedback
+        resume_text = new_session.resume
+        resume_feedback = new_session.feedback
         
-        formatted_chat_history = "\n".join([f"{msg.type}: {msg.text}" for msg in session.messages])
+        formatted_chat_history = "\n".join([f"{msg.type}: {msg.text}" for msg in new_session.messages])
         formatted_chat_history += f"\nuser: {message}"
     
         document = DOCUMENT_TEMPLATE.format(
@@ -56,12 +57,11 @@ async def chat(
             feedback=resume_feedback,
             chat_history=formatted_chat_history,
         )
-    
         response = process_llm.process(text=document, model=model, prompt=CHAT_PROMPT) or ""
-        session.messages.append(Message(type="user", text=message))
-        session.messages.append(Message(type="bot", text=response.get("response")))
+        new_session.messages.append(Message(type="user", text=message))
+        new_session.messages.append(Message(type="bot", text=response.get("response")))
         
-        session_messages_json = [msg.__dict__ for msg in session.messages]
+        session_messages_json = [msg.__dict__ for msg in new_session.messages]
 
         resume_repository.save_resume_chat_history(file_id, session_messages_json)
         return response
