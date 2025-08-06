@@ -32,8 +32,11 @@ async def register(
     Returns:
         dict: A dictionary containing a success message.
     """
-    # Check if the email is already registered
-    if security_repository.user_exists(user.email):
+    # Check if the email is already registered    
+    if security_repository.username_exists(user.username):
+        raise HTTPException(status_code=400, detail="Username is taken.")
+    
+    if security_repository.email_exists(user.email):
         raise HTTPException(status_code=400, detail="Email already registered")
     
     # Register the user
@@ -57,10 +60,13 @@ async def login(
         dict: A dictionary containing an access token and user information.
     """
     # Find the user in the database
-    db_user = security_repository.get_user_by_email(user.email)
+    db_user = security_repository.get_user(user.username_or_email)
+    if not db_user:
+        raise HTTPException(status_code=401, detail="Invalid email or username")
+    
     # Verify the user's password
-    if not db_user or not auth_utils.verify_password(user.password, db_user.password_hash):
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+    if not auth_utils.verify_password(user.password, db_user.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid password")
     
     # Create a JWT token for the user
     token = auth_utils.create_jwt_token(str(db_user.user_id))

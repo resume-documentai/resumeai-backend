@@ -44,7 +44,7 @@ class UserRegister(BaseModel):
 
 @config
 class UserLogin(BaseModel):
-    email: str
+    username_or_email: str
     password: str
 
 @config

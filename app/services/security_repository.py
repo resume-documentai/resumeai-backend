@@ -8,9 +8,23 @@ class SecurityRepository:
     def __init__(self, db: Database):
         self.db = db
 
-    def user_exists(self, email: str) -> bool:
+    def username_exists(self, username: str) -> bool:
         session = self.db.get_session()
+        try:
+            user = session.query(
+                AuthUser
+            ).filter(
+                AuthUser.username == username
+            ).first()
+            
+            return user is not None
+        except Exception as e:
+            raise e
+        finally:
+            session.close()
 
+    def email_exists(self, email: str) -> bool:
+        session = self.db.get_session()
         try:
             user = session.query(
                 AuthUser
@@ -23,14 +37,22 @@ class SecurityRepository:
             raise e
         finally:
             session.close()
-
-    def get_user_by_email(self, email: str) -> Optional[AuthUser]:
+            
+    def get_user(self, username_or_email: str) -> Optional[AuthUser]:
         session = self.db.get_session()
         try:
             user = session.query(
                 AuthUser
             ).filter(
-                AuthUser.email == email
+                AuthUser.email == username_or_email
+            ).first()
+            
+            if user is not None: return user
+            
+            user = session.query(
+                AuthUser
+            ).filter(
+                AuthUser.username == username_or_email
             ).first()
             
             return user
