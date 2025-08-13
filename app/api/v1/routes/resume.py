@@ -63,9 +63,7 @@ def get_resume(
     """
     try:
         resume = resume_repository.get_resume(file_id)
-        resume_text = resume.resume_text
-        resume_feedback = resume.feedback.feedback
-        return {"extracted_text": resume_text, "llm_feedback": resume_feedback}
+        return {"extracted_text": resume.resume_text, "general_feedback": resume.general_feedback, "feedback": resume.feedback.feedback, "overall_score": resume.overall_score}
     except Exception as e:
         print(str(e))
         raise HTTPException(status_code=404, detail="File not found")
