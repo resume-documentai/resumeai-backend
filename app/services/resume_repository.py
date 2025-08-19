@@ -196,7 +196,7 @@ class ResumeRepository:
                 Resume.file_id == file_id
             ).first()
             
-            return resume.chat_history, resume.resume_text, resume.feedback
+            return list(resume.chat_history), resume.resume_text, resume.feedback
         except Exception as e:
             raise e
         finally:
