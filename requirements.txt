@@ -1,9 +1,10 @@
 annotated-types==0.7.0
 anyio==4.9.0
-bcrypt==4.0.1
+bcrypt==4.3.0
 certifi==2025.4.26
 cffi==1.17.1
 charset-normalizer==3.4.2
+click==8.2.1
 coverage==7.8.2
 cryptography==45.0.3
 distro==1.9.0
@@ -28,6 +29,7 @@ openai==1.84.0
 orjson==3.10.18
 packaging==24.2
 passlib==1.7.4
+pdf2image==1.17.0
 pdfminer.six==20240706
 pgvector==0.4.1
 pillow==11.3.0
@@ -41,6 +43,7 @@ pydantic_core==2.33.2
 Pygments==2.19.1
 PyJWT==2.10.1
 pymongo==4.13.0
+pytesseract==0.3.13
 pytest==8.4.0
 pytest-asyncio==1.0.0
 pytest-cov==6.1.1
@@ -61,4 +64,5 @@ tqdm==4.67.1
 typing-inspection==0.4.1
 typing_extensions==4.14.0
 urllib3==2.5.0
+uvicorn==0.35.0
 zstandard==0.23.0

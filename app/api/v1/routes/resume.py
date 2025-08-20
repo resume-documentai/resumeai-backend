@@ -109,7 +109,7 @@ async def upload_resume(
         txt = file_processing.extract(temp_path, file_ext)    
         os.remove(temp_path)
 
-        if not txt:
+        if not txt or txt == "":
             raise HTTPException(status_code=400, detail="Unsupported file type")
 
         if user_id:
