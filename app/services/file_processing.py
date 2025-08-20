@@ -1,6 +1,7 @@
 from pdf2image import convert_from_path
 from pytesseract import image_to_string
 from docx import Document
+import re
 from langchain_openai import OpenAIEmbeddings
 from typing import Optional, List
 import hashlib
@@ -10,6 +11,53 @@ class FileProcessing:
     def __init__(self):
         self.embedding_model = OpenAIEmbeddings()
         
+    def clean_text(self, text:str) -> str:
+        """ Clean text after being extracted from the file """
+        lines = text.split("\n")
+        cleaned = []
+        buffer = ""
+        
+        bullet_point = re.compile(r"^\s*[\*\+\-\•]\s+")
+        sentence_end = re.compile(r"[.:!?…\"\')\]]$")
+        possible_headers = re.compile(r"^[A-Z][\w\s,&\-()]{0,40}$")
+        
+        for i, line in enumerate(lines):
+            line = line.strip()
+            if not line:
+                if buffer:
+                    cleaned.append(buffer.strip())
+                    buffer = ""
+                continue
+                
+            if bullet_point.match(line):
+                if buffer:
+                    cleaned.append(buffer.strip())
+                buffer = "*" + line[1:]
+                continue
+                
+            if buffer and sentence_end.match(line):
+                cleaned.append(buffer.strip())
+                buffer = line
+                continue
+            
+            if possible_headers.match(line):
+                if buffer:
+                    cleaned.append(buffer.strip())
+                cleaned.append(line)
+                buffer = ""
+                continue
+            
+            if not buffer:
+                buffer = line
+                continue
+            
+            buffer += " " + line
+            
+        if buffer:
+            cleaned.append(buffer.strip())
+        
+        return "\n".join(cleaned)
+
     def __from_pdf(self, fp) -> str:
         """Extract text from a PDF file"""
         try:
@@ -17,6 +65,7 @@ class FileProcessing:
             text = ""
             for image in images:
                 text += image_to_string(image)
+            text = self.clean_text(text)
             return text
         except Exception as e:
             print("OCR Error: " + str(e))
@@ -26,7 +75,7 @@ class FileProcessing:
         """Extract text from a DOCX file"""
         try:
             doc = Document(fp)
-            return "\n".join([p.text for p in doc.paragraphs])
+            return self.clean_text("\n".join([p.text for p in doc.paragraphs]))
         except Exception as e:
             print("Docx Error: " + str(e))
             return ""
