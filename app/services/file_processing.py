@@ -10,6 +10,7 @@ import uuid
 class FileProcessing:
     def __init__(self):
         self.embedding_model = OpenAIEmbeddings()
+        pass
         
     def clean_text(self, text:str) -> str:
         """ Clean text after being extracted from the file """
@@ -17,11 +18,15 @@ class FileProcessing:
         cleaned = []
         buffer = ""
         
+        garbage_prefix = re.compile(r"^[^\w\s]*([a-z\s\W]{0,20})")
         bullet_point = re.compile(r"^\s*[\*\+\-\•]\s+")
         sentence_end = re.compile(r"[.:!?…\"\')\]]$")
         possible_headers = re.compile(r"^[A-Z][\w\s,&\-()]{0,40}$")
         
         for i, line in enumerate(lines):
+            if i == 0 and garbage_prefix.match(line):
+                line = line[garbage_prefix.match(line).end():]
+            
             line = line.strip()
             if not line:
                 if buffer:
@@ -110,4 +115,3 @@ class FileProcessing:
             List of embeddings
         """
         return self.embedding_model.embed_documents([text])[0]
-
