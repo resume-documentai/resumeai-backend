@@ -14,7 +14,9 @@ RUN apt-get update && apt-get install -y \
     libblas-dev \
     liblapack-dev \
     libsqlite3-dev \
-    libatlas-base-dev \
+    tesseract-ocr \
+    poppler-utils \
+    libgl1 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt /app/requirements.txt
