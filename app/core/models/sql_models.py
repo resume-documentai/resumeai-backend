@@ -2,8 +2,8 @@ import os
 import uuid
 from sqlalchemy import Column, String, DateTime, text, Text, Float, ForeignKey, UUID
 from sqlalchemy import create_engine
-# from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.dialects.sqlite import JSON
+from sqlalchemy.dialects.postgresql import JSONB
+# from sqlalchemy.dialects.sqlite import JSON
 from sqlalchemy.orm import relationship, declarative_base
 from pgvector.sqlalchemy import Vector
 
