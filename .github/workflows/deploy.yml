@@ -38,7 +38,14 @@ jobs:
 
       - name: Copy Backend Files to EC2
         run: |
-          rsync -avz --delete ./ ec2-user@${{ secrets.EC2_HOST }}:/home/ec2-user/app/backend
+          rsync -avz \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='.env' \
+            --exclude='__pycache__' \
+            --exclude='*.pyc' \
+            --delete \
+            ./ ec2-user@${{ secrets.EC2_HOST }}:/home/ec2-user/app/backend
 
       - name: Deploy on EC2 (Docker Compose)
         run: |
