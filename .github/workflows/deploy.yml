@@ -27,6 +27,7 @@ jobs:
       - name: Create .env on EC2
         run: |
           ssh ec2-user@${{ secrets.EC2_HOST }} << 'EOF'
+            mkdir -p ~/app/backend
             cat <<EOT > ~/app/backend/.env
             OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
             JWT_SECRET=${{ secrets.JWT_SECRET }}
