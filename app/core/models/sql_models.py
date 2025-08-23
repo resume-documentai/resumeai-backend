@@ -52,7 +52,7 @@ class ResumeFeedback(Base):
     __tablename__ = 'resume_feedback'
     
     id = Column(UUID, ForeignKey('resumes.id', ondelete='CASCADE'), primary_key=True)
-    feedback = Column(JSON)
+    feedback = Column(JSONB)
 
     resume = relationship("Resume",
                             back_populates="feedback",
@@ -64,7 +64,7 @@ class ChatSession(Base):
     __tablename__ = 'chat_sessions'
     
     id = Column(UUID, ForeignKey('resumes.id', ondelete='CASCADE'), primary_key=True)
-    chat_history = Column(JSON)
+    chat_history = Column(JSONB)
     
     resume = relationship("Resume",
                             back_populates="chatsession",

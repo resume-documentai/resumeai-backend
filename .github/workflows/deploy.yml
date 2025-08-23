@@ -29,6 +29,7 @@ jobs:
           ssh ec2-user@${{ secrets.EC2_HOST }} << 'EOF'
             mkdir -p ~/app/backend
             cat <<EOT > ~/app/backend/.env
+            ENV=deployment
             OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
             JWT_SECRET=${{ secrets.JWT_SECRET }}
             DATABASE_URL=${{ secrets.DATABASE_URL }}
