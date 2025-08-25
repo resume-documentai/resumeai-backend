@@ -32,7 +32,14 @@ class Database:
             if not db_url:
                 raise ValueError("DATABASE_URL environment variable is required")
         
-            self._engine = create_engine(db_url)
+            self._engine = create_engine(
+                db_url,
+                pool_size=5,
+                max_overflow=10,
+                pool_pre_ping=True,
+                connect_args={"sslmode": "require"}                
+            )
+            
             self._sessionmaker = sessionmaker(autocommit=False, autoflush=False, bind=self._engine)
             self._initialized = True
             
