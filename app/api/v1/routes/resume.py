@@ -11,6 +11,7 @@ from app.core.dependencies import (
     get_process_llm,
 )
 from app.services.file_processing import FileProcessing
+from app.services.data_prep import DataPrep
 from app.services.process_llm import ProcessLLM
 from app.services.resume_repository import ResumeRepository
 from app.services.llm_prompts import DOCUMENT_TEMPLATE, BASE_PROMPT
@@ -77,7 +78,7 @@ async def upload_resume(
     resume_repository: ResumeRepository = Depends(get_resume_repository),
     file_processing: FileProcessing = Depends(get_file_processing),
     process_llm: ProcessLLM = Depends(get_process_llm),
-):
+    ):
     """
     Upload a resume and extract information from it.
     
@@ -125,6 +126,8 @@ async def upload_resume(
 
         llm_feedback = process_llm.process(document, model=model_option, prompt=BASE_PROMPT)
         embedding = file_processing.generate_embeddings(txt)
+        
+        txt, llm_feedback = DataPrep.prep_output(txt, llm_feedback)
         
         resume_repository.save_resume_feedback(
             user_id=user_id,
@@ -185,4 +188,5 @@ async def get_similar_resumes(
         return results
 
     except Exception as e:
+        print(str(e))
         raise HTTPException(status_code=500, detail=str(e))

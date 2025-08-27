@@ -11,7 +11,7 @@ class ProcessLLM:
         self.openai_client = OpenAI(api_key=OPENAI_API_KEY)
         self.base_prompt = BASE_PROMPT
         
-        self.temperature = 0.0
+        self.temperature = 0.2
         self.max_tokens = 2000
 
     def __test_llama_connection(self) -> bool:

@@ -10,75 +10,43 @@ DOCUMENT_TEMPLATE = r"""Here is the resume document text, delimited with triple 
 
 # Resume Prompts
 BASE_PROMPT = r"""
-You are a professional resume reviewer. Analyze the resume text and provide a structured assessment in JSON format. The assessment should include scores (0-10) and detailed analysis for the following categories:
+You are a professional resume reviewer. Evaluate the resume below and return structured feedback in JSON format.
+
+For each category:
+- Give a score (0.0–10.0), list real strengths, weaknesses, and suggestions.
+- Only include suggestions for real issues—do not invent problems.
+- If there are no issues give a score of 10 and leave weaknesses and suggestions lists empty.
+
+Note:
+- Ignore OCR artifacts where lowercase “l” appears as uppercase “I” (e.g., “OpenAI” → “OpenAl”).
+- Do not flag common abbreviations (e.g., "AI", "CI/CD", "ML", "SQL", "API").
+- Only flag inconsistent formats (e.g., dates or locations) if they **deviate** from the dominant style in the document.
+- Avoid repeated or redundant suggestions for similar terms or formats.
 
 Categories:
+1. Structure/Organization – Section layout and logical grouping
+2. Clarity/Conciseness – Brief, clear bullet points
+3. Grammar/Spelling – Real grammar or spelling issues only
+4. Impact/Accomplishments – Action verbs, measurable results
+5. ATS Readability – Standard formatting, keywords, parsability
 
-1. Structure/Organization
-- Follows a logical and consistent layout with clear section headings.
-- Information is grouped intuitively for easy scanning and navigation.
-- Rating hint: 1 = chaotic layout; 10 = clean, professional layout
-2. Clarity/Conciseness
-- Bullet points are short, direct, and focused on value or results.
-- Avoids fluff, repetition, or vague descriptions.
-- Rating hint: 1 = very verbose and repetitive; 10 = concise
-3. Grammar/Spelling
-- Are there any grammar or spelling errors?
-- Are headings and dates consistent and appropriately used?
-- Rating hint: 1 = many errors; 10 = no errors
-4. Impact/Accomplishments
-- Emphasizes quantifiable achievements over responsibilities.
-- Uses strong action verbs to convey initiative and results.
-- Rating hint: 1 = very generic; 10 = specific and impactful
-5. ATS Readability
-- Uses standard formatting and section headers (no tables, columns, or graphics that break parsing).
-- Includes relevant job keywords and skills to optimize for search and ranking.
-- Rating hint: 1 = major ATS blockers; 10 = fully readable by applicant tracking software and keyword-optimized.
-
-
-For each category, provide:
-- score (0.0-10.0)
-- strengths (positive aspects)
-- weaknesses (areas for improvement)
-- suggestions (specific recommendations)
-
-Output format (do not deviate):
+Format:
 ```json
 {
-    "structure_organization": {
-        "score": 8.5,
-        "strengths": ["list", "of", "strengths"],
-        "weaknesses": ["list", "of", "weaknesses"],
-        "suggestions": ["list", "of", "suggestions"]
-    },
-    "clarity_conciseness": {
-        "score": 7.5,
-        "strengths": ["list", "of", "strengths"],
-        "weaknesses": ["list", "of", "weaknesses"],
-        "suggestions": ["list", "of", "suggestions"]
-    },
-    "grammar_spelling": {
-        "score": 6.0,
-        "strengths": ["list", "of", "strengths"],
-        "weaknesses": ["list", "of", "weaknesses"],
-        "suggestions": ["list", "of", "suggestions"]
-    },
-    "impact_accomplishments": {
-        "score": 10.0,
-        "strengths": ["list", "of", "strengths"],
-        "weaknesses": ["list", "of", "weaknesses"],
-        "suggestions": ["list", "of", "suggestions"]
-    },
-    "ats_readability": {
-        "score": 8.0,
-        "strengths": ["list", "of", "strengths"],
-        "weaknesses": ["list", "of", "weaknesses"],
-        "suggestions": ["list", "of", "suggestions"]
-    },
-    "overall_score": 8.0,  // Must be a number between 0-10
-    "general_feedback": "Summary of overall resume quality and major areas for improvement"  // Must be a string
+  "structure_organization": {
+    "score": 0.0,
+    "strengths": [],
+    "weaknesses": [],
+    "suggestions": [
+      {
+        "text": "Explanation of issue",
+        "match": "exact substring"
+      }
+    ]
+  },
+  ...
+  "general_feedback": ""
 }
-
 """
 
 
@@ -107,4 +75,5 @@ Output Format:
 {
     "response": "Your response following all rules above, using markdown bullet points and formatting"
 }
+```
 """

@@ -34,7 +34,7 @@ async def register(
     """
     # Check if the email is already registered
     if security_repository.username_exists(user.username):
-        raise HTTPException(status_code=400, detail="Username is taken.")
+        raise HTTPException(status_code=400, detail="Username is taken")
     
     if security_repository.email_exists(user.email):
         raise HTTPException(status_code=400, detail="Email already registered")
