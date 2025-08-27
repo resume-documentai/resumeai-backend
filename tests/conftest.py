@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime
 
 import pytest
+import numpy as np
 
 from fastapi.testclient import TestClient
 from main import app
@@ -27,6 +28,7 @@ def mock_env_variables():
     
     yield
     
+@pytest.fixture(scope="module")
 def mock_db(mock_session):
     """ Mock resume repository for an empty database """
     mock_db = MagicMock(spec=Database)
