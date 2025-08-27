@@ -126,7 +126,7 @@ async def upload_resume(
 
         llm_feedback = process_llm.process(document, model=model_option, prompt=BASE_PROMPT)
         embedding = file_processing.generate_embeddings(txt)
-
+        
         txt, llm_feedback = DataPrep.prep_output(txt, llm_feedback)
         
         resume_repository.save_resume_feedback(
@@ -188,4 +188,5 @@ async def get_similar_resumes(
         return results
 
     except Exception as e:
+        print(str(e))
         raise HTTPException(status_code=500, detail=str(e))

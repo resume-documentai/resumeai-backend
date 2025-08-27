@@ -1,6 +1,5 @@
-from pdf2image import convert_from_path
-from pytesseract import image_to_string
 from docx import Document
+import pdfminer.high_level
 from langchain_openai import OpenAIEmbeddings
 from typing import List
 import hashlib
@@ -17,11 +16,8 @@ class FileProcessing:
     def __from_pdf(self, fp) -> str:
         """Extract text from a PDF file"""
         try:
-            images = convert_from_path(fp)
-            text = ""
-            for image in images:
-                text += image_to_string(image)
-            text = DataPrep.clean_ocr_text(text)
+            text = pdfminer.high_level.extract_text(fp)
+            text = DataPrep.clean_text(text)
             return text
         except Exception as e:
             print("OCR Error: " + str(e))
@@ -31,7 +27,7 @@ class FileProcessing:
         """Extract text from a DOCX file"""
         try:
             doc = Document(fp)
-            return DataPrep.clean_ocr_text("\n".join([p.text for p in doc.paragraphs]))
+            return DataPrep.clean_text("\n".join([p.text for p in doc.paragraphs]))
         except Exception as e:
             print("Docx Error: " + str(e))
             return ""

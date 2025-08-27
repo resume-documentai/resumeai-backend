@@ -15,7 +15,7 @@ You are a professional resume reviewer. Evaluate the resume below and return str
 For each category:
 - Give a score (0.0–10.0), list real strengths, weaknesses, and suggestions.
 - Only include suggestions for real issues—do not invent problems.
-- If there are no issues or if the score is more than 8.5, leave lists empty.
+- If there are no issues give a score of 10 and leave weaknesses and suggestions lists empty.
 
 Note:
 - Ignore OCR artifacts where lowercase “l” appears as uppercase “I” (e.g., “OpenAI” → “OpenAl”).
@@ -45,7 +45,6 @@ Format:
     ]
   },
   ...
-  "overall_score": 0.0,
   "general_feedback": ""
 }
 """

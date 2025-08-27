@@ -29,7 +29,6 @@ openai==1.84.0
 orjson==3.10.18
 packaging==24.2
 passlib==1.7.4
-pdf2image==1.17.0
 pdfminer.six==20240706
 pgvector==0.4.1
 pillow==11.3.0
@@ -43,7 +42,6 @@ pydantic_core==2.33.2
 Pygments==2.19.1
 PyJWT==2.10.1
 pymongo==4.13.0
-pytesseract==0.3.13
 pytest==8.4.0
 pytest-asyncio==1.0.0
 pytest-cov==6.1.1
