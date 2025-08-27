@@ -21,14 +21,6 @@ def mock_session():
     return session
 
 @pytest.fixture(scope="module")
-def mock_env_variables():
-    """ Set blank env variable for OPENAI_API_KEY """
-    import os
-    os.environ["OPENAI_API_KEY"] = "env"
-    
-    yield
-    
-@pytest.fixture(scope="module")
 def mock_db(mock_session):
     """ Mock resume repository for an empty database """
     mock_db = MagicMock(spec=Database)
