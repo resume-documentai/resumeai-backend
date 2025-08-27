@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 
 import pytest
-import numpy as np
+
 from fastapi.testclient import TestClient
 from main import app
 from unittest.mock import MagicMock
@@ -20,6 +20,13 @@ def mock_session():
     return session
 
 @pytest.fixture(scope="module")
+def mock_env_variables():
+    """ Set blank env variable for OPENAI_API_KEY """
+    import os
+    os.environ["OPENAI_API_KEY"] = "env"
+    
+    yield
+    
 def mock_db(mock_session):
     """ Mock resume repository for an empty database """
     mock_db = MagicMock(spec=Database)
