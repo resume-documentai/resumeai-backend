@@ -11,6 +11,7 @@ from app.core.dependencies import (
     get_process_llm,
 )
 from app.services.file_processing import FileProcessing
+from app.services.data_prep import DataPrep
 from app.services.process_llm import ProcessLLM
 from app.services.resume_repository import ResumeRepository
 from app.services.llm_prompts import DOCUMENT_TEMPLATE, BASE_PROMPT
@@ -63,9 +64,7 @@ def get_resume(
     """
     try:
         resume = resume_repository.get_resume(file_id)
-        resume_text = resume.resume_text
-        resume_feedback = resume.feedback.feedback
-        return {"extracted_text": resume_text, "llm_feedback": resume_feedback}
+        return {"extracted_text": resume.resume_text, "general_feedback": resume.general_feedback, "feedback": resume.feedback.feedback, "overall_score": resume.overall_score}
     except Exception as e:
         print(str(e))
         raise HTTPException(status_code=404, detail="File not found")
@@ -79,7 +78,7 @@ async def upload_resume(
     resume_repository: ResumeRepository = Depends(get_resume_repository),
     file_processing: FileProcessing = Depends(get_file_processing),
     process_llm: ProcessLLM = Depends(get_process_llm),
-):
+    ):
     """
     Upload a resume and extract information from it.
     
@@ -111,7 +110,7 @@ async def upload_resume(
         txt = file_processing.extract(temp_path, file_ext)    
         os.remove(temp_path)
 
-        if not txt:
+        if not txt or txt == "":
             raise HTTPException(status_code=400, detail="Unsupported file type")
 
         if user_id:
@@ -127,6 +126,8 @@ async def upload_resume(
 
         llm_feedback = process_llm.process(document, model=model_option, prompt=BASE_PROMPT)
         embedding = file_processing.generate_embeddings(txt)
+        
+        txt, llm_feedback = DataPrep.prep_output(txt, llm_feedback)
         
         resume_repository.save_resume_feedback(
             user_id=user_id,
@@ -187,4 +188,5 @@ async def get_similar_resumes(
         return results
 
     except Exception as e:
+        print(str(e))
         raise HTTPException(status_code=500, detail=str(e))

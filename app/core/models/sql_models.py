@@ -3,12 +3,13 @@ import uuid
 from sqlalchemy import Column, String, DateTime, text, Text, Float, ForeignKey, UUID
 from sqlalchemy import create_engine
 from sqlalchemy.dialects.postgresql import JSONB
+# from sqlalchemy.dialects.sqlite import JSON
 from sqlalchemy.orm import relationship, declarative_base
 from pgvector.sqlalchemy import Vector
 
 
 Base = declarative_base()
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./resumeai.db")
 
 class AuthUser(Base):
     __tablename__ = 'auth_users'

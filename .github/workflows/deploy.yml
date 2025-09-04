@@ -1,0 +1,60 @@
+name: Deploy Backend to EC2
+
+on:
+  workflow_run:
+    workflows: ["Run Tests"]
+    branches: [main]
+    types:
+      - completed
+
+jobs:
+  deploy:
+    # Only run if the test workflow was successful
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+
+      - name: Add EC2 Host to Known Hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Create .env on EC2
+        run: |
+          ssh ec2-user@${{ secrets.EC2_HOST }} << 'EOF'
+            mkdir -p ~/app/backend
+            cat <<EOT > ~/app/backend/.env
+            ENV=deployment
+            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
+            EOT
+          EOF
+
+      - name: Copy Backend Files to EC2
+        run: |
+          rsync -avz \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='.env' \
+            --exclude='__pycache__' \
+            --exclude='*.pyc' \
+            --delete \
+            ./ ec2-user@${{ secrets.EC2_HOST }}:/home/ec2-user/app/backend
+
+      - name: Deploy on EC2 (Docker Compose)
+        run: |
+          ssh ec2-user@${{ secrets.EC2_HOST }} << 'EOF'
+            cd ~/app/backend
+            docker-compose down || true
+            docker-compose up -d --build
+          EOF

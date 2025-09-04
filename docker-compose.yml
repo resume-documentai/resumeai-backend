@@ -21,14 +21,22 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}
-      - ENV=development
+      - DATABASE_URL=${DATABASE_URL}
+      - ENV=${ENV}
     # depends_on:
     #   db:
     #     condition: service_healthy
     volumes:
       - .:/app
     command: ["/app/entrypoint.sh"]
+    expose:
+      - "8000"
+    networks:
+      - resumeai
 
 volumes:
   postgres_data:
+
+networks:
+  resumeai:
+    driver: bridge

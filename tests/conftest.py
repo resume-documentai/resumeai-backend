@@ -3,6 +3,7 @@ from datetime import datetime
 
 import pytest
 import numpy as np
+
 from fastapi.testclient import TestClient
 from main import app
 from unittest.mock import MagicMock

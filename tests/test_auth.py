@@ -27,16 +27,19 @@ def test_auth_register_success(test_client, mock_security_repository, mock_sessi
     commit_count = mock_session.commit.call_count
     close_count = mock_session.close.call_count
     
-    mock_security_repository.user_exists = MagicMock(return_value=False)
+    mock_security_repository.username_exists = MagicMock(return_value=False)
+    mock_security_repository.email_exists = MagicMock(return_value=False)
     
-    response = test_client.post("/auth/register", json={
+    test_data = {
         "username": "testuser",
         "email": "testuser@example.com",
         "password": "testpassword"
-    })
+    }
     
-    assert response.status_code == 200
+    response = test_client.post("/auth/register", json=test_data)
+    
     assert response.json() == {"message": "User registered successfully"}
+    assert response.status_code == 200
     
     assert mock_session.add.call_count == add_count + 1
     assert mock_session.commit.call_count == commit_count + 1
@@ -48,12 +51,25 @@ def test_auth_register_success(test_client, mock_security_repository, mock_sessi
     
     assert mock_session.close.call_count == close_count + 1
     
-def test_auth_register_email_exists(test_client, mock_security_repository):
+def test_auth_register_user_exists(test_client, mock_security_repository):
     """Test registration with existing email"""
-    mock_security_repository.user_exists = MagicMock(return_value=True)
+    mock_security_repository.username_exists = MagicMock(return_value=True)
+    mock_security_repository.email_exists = MagicMock(return_value=False)
     
     response = test_client.post("/auth/register", json={
         "username": "testuser",
+        "email": "testuser@example.com",
+        "password": "testpassword"
+    })
+    
+    assert response.json() == {"detail": "Username is taken"}
+    assert response.status_code == 400
+    
+    mock_security_repository.username_exists = MagicMock(return_value=False)
+    mock_security_repository.email_exists = MagicMock(return_value=True)
+    
+    response = test_client.post("/auth/register", json={
+        "username": "newuser",
         "email": "testuser@example.com",
         "password": "testpassword"
     })
@@ -73,7 +89,7 @@ def test_auth_login_success(test_client, mock_session, test_user):
     with patch("app.core.utils.security.create_jwt_token", return_value="testtoken"):
         
         response = test_client.post("/auth/login", json={
-            "email": "testuser@example.com",
+            "username_or_email": "testuser@example.com",
             "password": "testpassword"
         })
     
@@ -102,12 +118,12 @@ def test_auth_login_invalid_credentials(test_client, mock_session, test_user):
     
     # Test login with invalid password
     response = test_client.post("/auth/login", json={
-        "email": "testuser@example.com",
+        "username_or_email": "testuser@example.com",
         "password": "wrongpassword"
     })
     
     assert response.status_code == 401
-    assert response.json() == {"detail": "Invalid email or password"}
+    assert response.json() == {"detail": "Invalid password"}
     
     assert mock_session.query.call_count == query_count + 1
     assert mock_session.query.return_value.filter.call_count == filter_count + 1
@@ -132,11 +148,17 @@ def test_user_exists(mock_session):
     sr = SecurityRepository(mock_session)
     
     mock_session.get_session.return_value.query.return_value.filter.return_value.first.return_value = "User Exists"
-    user_exists = sr.user_exists("testuser@example.com")
+    user_exists = sr.username_exists("testuser@example.com")
     assert user_exists
     
     mock_session.get_session.return_value.query.return_value.filter.return_value.first.return_value = None
-    user_exists = sr.user_exists("testuser@example.com")
+    user_exists = sr.username_exists("testuser@example.com")
     assert not user_exists
     
+    mock_session.get_session.return_value.query.return_value.filter.return_value.first.return_value = "User Exists"
+    user_exists = sr.email_exists("testuser@example.com")
+    assert user_exists
     
+    mock_session.get_session.return_value.query.return_value.filter.return_value.first.return_value = None
+    user_exists = sr.email_exists("testuser@example.com")
+    assert not user_exists

@@ -18,7 +18,7 @@ async def root():
     return {"message": "Welcome to the authentication service"}
 
 # Endpoint for user registration
-@auth_router.post("/register/")
+@auth_router.post("/register")
 async def register(
     user: UserRegister,
     security_repository: SecurityRepository = Depends(get_security_repository)):
@@ -32,9 +32,9 @@ async def register(
     Returns:
         dict: A dictionary containing a success message.
     """
-    # Check if the email is already registered    
+    # Check if the email is already registered
     if security_repository.username_exists(user.username):
-        raise HTTPException(status_code=400, detail="Username is taken.")
+        raise HTTPException(status_code=400, detail="Username is taken")
     
     if security_repository.email_exists(user.email):
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -45,7 +45,7 @@ async def register(
     return {"message": "User registered successfully"}
 
 # Endpoint for user login
-@auth_router.post("/login/")
+@auth_router.post("/login")
 async def login(
     user: UserLogin,
     security_repository: SecurityRepository = Depends(get_security_repository)):
