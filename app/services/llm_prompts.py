@@ -75,14 +75,5 @@ Output Format:
 {
     "response": "Your response following all rules above, using markdown bullet points and formatting"
 }
+```
 """
-
-### For Job Fit:
-### Try crafting new resume after extracting information from the resume and job description
-
-### Generate interview questions to prepare for the job
-#### Contextualize questions based on the job description
-
-### For negative things provide links to resources to improve the resume
-
-# Pivot from resume review to one stop shop for job/interview prep

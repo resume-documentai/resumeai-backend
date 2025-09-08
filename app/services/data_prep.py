@@ -63,7 +63,6 @@ class DataPrep:
         
         return text.replace(match, "<mark class='" + color + "'>" + match + "</mark>")
     
-    
     def prep_output(text: str, feedback: dict) -> Tuple[str, Feedback]:
         """ Prepare output package to be delivered to frontend """
         categories = ["structure_organization", "clarity_conciseness", "grammar_spelling", "impact_accomplishments", "ats_readability"]
@@ -105,4 +104,14 @@ class DataPrep:
         except Exception as e:
             print("Error preparing output: " + str(e))
             return text, None
-            
+    
+    def split_resume_into_chunks(text: str) -> List[str]:
+        """
+        Split resume into chunks for embeddings.
+        
+        Args:
+            text (str): The text to split
+        Returns:
+            List[str]: A list of four possible chunks
+        """
+        return text.split("\n")
