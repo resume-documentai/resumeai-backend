@@ -1,7 +1,8 @@
 from typing import Optional
 
 from app.core.database import Database
-from app.core.models.sql_models import AuthUser
+from app.core.models.pydantic_models import UserPreferences
+from app.core.models.sql_models import AuthUser, UserProfile
 from app.core.utils.security import hash_password
 
 class SecurityRepository:
@@ -76,6 +77,50 @@ class SecurityRepository:
             session.add(user)
             session.commit()
 
+        except Exception as e:
+            session.rollback()
+            raise e
+        finally:
+            session.close()
+
+    def get_user_preferences(self, user_id: str) -> Optional[UserProfile]:
+        session = self.db.get_session()
+        try:
+            user_profile = session.query(
+                UserProfile
+            ).filter(
+                UserProfile.user_id == user_id
+            ).first()
+            
+            if user_profile is None:
+                user_profile = UserProfile(
+                    user_id=user_id,
+                    preferences={}
+                )
+                session.add(user_profile)
+
+                session.commit()
+            
+            return user_profile
+        except Exception as e:
+            raise e
+        finally:
+            session.close()
+
+    def set_user_preferences(self, user_id: str, preferences: UserPreferences):
+        session = self.db.get_session()
+        try:
+            user_profile = session.query(
+                UserProfile
+            ).filter(
+                UserProfile.user_id == user_id
+            ).first()
+            
+            if user_profile is not None:
+                user_profile.preferences = preferences.model_dump()
+                session.commit()
+            
+            return user_profile
         except Exception as e:
             session.rollback()
             raise e

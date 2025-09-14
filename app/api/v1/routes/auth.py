@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from app.core.utils import security as auth_utils
-from app.core.models.pydantic_models import UserRegister, UserLogin
+from app.core.models.pydantic_models import UserRegister, UserLogin, UserProfile
 from app.core.dependencies import get_security_repository
 from app.services.security_repository import SecurityRepository
+from typing import Optional
 
 auth_router = APIRouter()
 
@@ -88,30 +89,36 @@ async def login(
 #         raise HTTPException(status_code=403, detail="Invalid or expired token")
 #     return {"message": "You have access!", "user_id": token}
 
-@auth_router.get("/get_preferences")
+@auth_router.get("/get-preferences")
 async def get_user_preferences(
+    user_id: Optional[str] = Query(None),
     security_repository: SecurityRepository = Depends(get_security_repository)):
     """
     Get user profile with their preferences:
     
     Args:
+        user_id (str): The user id.
         db (Database): The database to use for user profile.
     
     Returns:
         dict: A dictionary containing user profile information.
     """
-    return security_repository.get_user_preferences()
+    try:
+        preferences = security_repository.get_user_preferences(user_id)
+        return preferences
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
 
 
-@auth_router.post("/set_preferences")
+@auth_router.post("/set-preferences")
 async def set_user_preferences(
-    preferences: dict = Form(...),
+    profile: UserProfile,
     security_repository: SecurityRepository = Depends(get_security_repository)):
     """
     Fill user profile with their preferences:
     {
         "user_id": "123",
-        "email": "user@example.com",
         "preferences": {
             "career_goals": "Backend SWE at product-driven companies",
             "industries": ["AI", "DevTools"],
@@ -128,7 +135,11 @@ async def set_user_preferences(
         dict: A dictionary containing user profile information.
     """
     try:
-        security_repository.update_user_preferences(preferences)
+        if not profile.user_id:
+            raise HTTPException(status_code=400, detail="User ID is required")
+
+        
+        security_repository.set_user_preferences(profile.user_id, profile.preferences)
         return {"message": "User preferences updated successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
