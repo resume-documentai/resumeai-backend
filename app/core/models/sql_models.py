@@ -20,6 +20,13 @@ class AuthUser(Base):
     password_hash = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=text('CURRENT_TIMESTAMP'))
 
+class UserProfile(Base):
+    __tablename__ = 'user_profiles'
+    
+    user_id = Column(UUID(as_uuid=True), ForeignKey('auth_users.user_id'), primary_key=True)
+    preferences = Column(JSONB, nullable=True)
+
+
 class Resume(Base):
     __tablename__ = 'resumes'
     
