@@ -88,3 +88,48 @@ async def login(
 #         raise HTTPException(status_code=403, detail="Invalid or expired token")
 #     return {"message": "You have access!", "user_id": token}
 
+@auth_router.get("/get_preferences")
+async def get_user_preferences(
+    security_repository: SecurityRepository = Depends(get_security_repository)):
+    """
+    Get user profile with their preferences:
+    
+    Args:
+        db (Database): The database to use for user profile.
+    
+    Returns:
+        dict: A dictionary containing user profile information.
+    """
+    return security_repository.get_user_preferences()
+
+
+@auth_router.post("/set_preferences")
+async def set_user_preferences(
+    preferences: dict = Form(...),
+    security_repository: SecurityRepository = Depends(get_security_repository)):
+    """
+    Fill user profile with their preferences:
+    {
+        "user_id": "123",
+        "email": "user@example.com",
+        "preferences": {
+            "career_goals": "Backend SWE at product-driven companies",
+            "industries": ["AI", "DevTools"],
+            "target_locations": ["SF", "Seattle", "Remote"],
+            "current_status": "Actively applying"
+        }
+    }
+    
+    Args:
+        preferences (dict): The preferences of the user.
+        db (Database): The database to use for user profile.
+    
+    Returns:
+        dict: A dictionary containing user profile information.
+    """
+    try:
+        security_repository.update_user_preferences(preferences)
+        return {"message": "User preferences updated successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
