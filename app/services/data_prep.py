@@ -1,6 +1,6 @@
 
 import re
-from typing import Tuple
+from typing import Tuple, List, Dict
 
 from app.core.models.pydantic_models import Feedback, FeedbackCategory
 
@@ -115,3 +115,55 @@ class DataPrep:
             List[str]: A list of four possible chunks
         """
         return text.split("\n")
+
+    def chunk_jd_into_chunks(text: str) -> Dict[str, str]:
+        """
+        Split job description into chunks.
+            - Summary/Overview
+            - Qualifications/Requirements
+            - Responsibilities
+            - Preffered/Nice-to-have
+            
+        Do not chunk:    
+            - About/Benefits
+            - Location
+            - Salary
+            - Apply/Requisition
+            - Legal Boilerplate
+            
+        Args:
+            text (str): The text to split
+        Returns:
+            Dict[str, List[float]]: A dictionary of chunks
+            {
+                "summary": "Summary/Overview"
+                "qualifications": "Qualifications/Requirements"
+                "responsibilities": "Responsibilities"
+                "preferred": "Preffered/Nice-to-have"
+            }
+        """
+
+        clean_text = re.sub(r"\r", "", text.strip())
+        
+        section_patterns = {
+            "summary": r"(summary|overview|about the role):?",
+            "qualifications": r"(qualifications|requirements|required skills):?",
+            "responsibilities": r"(responsibilities|duties|what you'?ll do|what you will do):?",
+            "preferred": r"(preferred|nice to have|additional|bonus points):?",
+        }
+        
+        combined_pattern = r"\n\s*".join(section_patterns.values())
+        regex = re.compile(combined_pattern, flag=re.IGNORECASE)
+        
+        matches = list(regex.finditer(clean_text))
+        chunks = {key: "" for key in section_patterns.keys()}
+        
+        for i, match in enumerate(matches):
+            section = match.lastgroup
+            start = match.end()
+            end = matches[i + 1].start() if i + 1 < len(matches) else len(clean_text)
+            chunks[section] = clean_text[start:end].strip()
+        
+        return chunks
+        
+        
