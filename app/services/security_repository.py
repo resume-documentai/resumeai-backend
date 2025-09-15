@@ -98,7 +98,6 @@ class SecurityRepository:
                     preferences={}
                 )
                 session.add(user_profile)
-
                 session.commit()
             
             return user_profile
@@ -116,10 +115,16 @@ class SecurityRepository:
                 UserProfile.user_id == user_id
             ).first()
             
-            if user_profile is not None:
+            if user_profile:
                 user_profile.preferences = preferences.model_dump()
-                session.commit()
+            else:
+                user_profile = UserProfile(
+                    user_id=user_id,
+                    preferences=preferences.model_dump()
+                )
+                session.add(user_profile)
             
+            session.commit()
             return user_profile
         except Exception as e:
             session.rollback()
