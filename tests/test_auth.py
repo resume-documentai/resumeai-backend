@@ -1,6 +1,7 @@
 import uuid
 
 import pytest
+from app.core.models.sql_models import UserProfile
 from app.services import security_repository
 from conftest import mock_db, mock_security_repository, test_client
 from main import app
@@ -162,3 +163,106 @@ def test_user_exists(mock_session):
     mock_session.get_session.return_value.query.return_value.filter.return_value.first.return_value = None
     user_exists = sr.email_exists("testuser@example.com")
     assert not user_exists
+
+
+def test_get_user_preferences_success(mock_session, test_client):
+    """Test getting user preferences successfully"""
+    # Mock the database response
+    mock_preferences = {
+        "career_goals": "Backend SWE at product-driven companies",
+        "industries": ["AI", "DevTools"],
+        "target_locations": ["SF", "Seattle", "Remote"],
+        "current_status": "Actively applying"
+    }
+    
+    mock_session.query.return_value.filter.return_value.first.return_value = type('obj', (object,), {
+        "user_id": "test-user-123",
+        "preferences": mock_preferences
+    })
+    
+    # Make the request
+    response = test_client.get("/auth/get-preferences?user_id=test-user-123")
+    
+    # Assert the response
+    assert response.status_code == 200
+    assert response.json() == {"preferences": mock_preferences}
+
+
+def test_get_user_preferences_not_found(mock_session, test_client):
+    """Test getting preferences for a non-existent user"""
+    # Mock no user found
+    mock_session.query.return_value.filter.return_value.first.return_value = None
+    
+    # Make the request
+    response = test_client.get("/auth/get-preferences?user_id=non-existent-user")
+    
+    # Assert the response
+    assert response.status_code == 200
+    assert response.json() == {"preferences": {}}
+
+
+def test_set_user_preferences_success(mock_session, test_client):
+    """Test setting user preferences successfully"""
+    # Mock the database response
+    test_user_id = "test-user-123"
+    test_preferences = {
+        "career_goals": "Backend SWE at product-driven companies",
+        "industries": ["AI", "DevTools"],
+        "target_locations": ["SF", "Seattle", "Remote"],
+        "current_status": "Actively applying"
+    }
+    
+    # Mock the database response for both get and set operations
+    mock_session.get_session.return_value.query.return_value.filter.return_value.first.side_effect = [
+        None,  # First call (check if exists)
+        type('obj', (object,), {'user_id': test_user_id, 'preferences': test_preferences})()  # Second call (return after set)
+    ]
+    
+    # Make the request
+    response = test_client.post(
+        "/auth/set-preferences",
+        json={
+            "user_id": test_user_id,
+            "preferences": test_preferences
+        }
+    )
+    
+    # Assert the response
+    assert response.status_code == 200
+    assert response.json() == {"message": "User preferences updated successfully"}
+
+
+def test_set_user_preferences_update_existing(mock_session, test_client):
+    """Test updating existing user preferences"""
+    test_user_id = "test-user-123"
+    existing_preferences = {"career_goals": "old_value",
+                            "industries": ["AI", "DevTools"],
+                            "target_locations": ["SF", "Seattle", "Remote"],
+                            "current_status": "Old Status"}
+    new_preferences = {"career_goals": "new_value",
+                        "industries": ["AI", "DevTools"],
+                        "target_locations": ["SF", "Seattle", "Remote"],
+                        "current_status": "New Status"}
+    
+    # Mock existing user profile
+    mock_profile = type('obj', (object,), {
+        'user_id': test_user_id,
+        'preferences': existing_preferences
+    })()
+    
+    # Mock the database response
+    mock_session.get_session.return_value.query.return_value.filter.return_value.first.return_value = mock_profile
+    
+    # Make the request to update preferences
+    response = test_client.post(
+        "/auth/set-preferences",
+        json={
+            "user_id": test_user_id,
+            "preferences": new_preferences
+        }
+    )
+    
+    # Assert the response
+    assert response.status_code == 200
+    assert response.json() == {"message": "User preferences updated successfully"}
+    

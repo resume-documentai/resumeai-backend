@@ -104,8 +104,9 @@ async def get_user_preferences(
         dict: A dictionary containing user profile information.
     """
     try:
-        preferences = security_repository.get_user_preferences(user_id)
-        return preferences
+        profile = security_repository.get_user_preferences(user_id)
+
+        return {"preferences": profile.preferences}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     

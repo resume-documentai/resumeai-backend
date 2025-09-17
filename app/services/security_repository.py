@@ -91,7 +91,6 @@ class SecurityRepository:
             ).filter(
                 UserProfile.user_id == user_id
             ).first()
-            
             if user_profile is None:
                 user_profile = UserProfile(
                     user_id=user_id,
@@ -114,7 +113,6 @@ class SecurityRepository:
             ).filter(
                 UserProfile.user_id == user_id
             ).first()
-            
             if user_profile:
                 user_profile.preferences = preferences.model_dump()
             else:
@@ -122,12 +120,12 @@ class SecurityRepository:
                     user_id=user_id,
                     preferences=preferences.model_dump()
                 )
-                session.add(user_profile)
-            
+                
+            session.add(user_profile)
             session.commit()
-            return user_profile
         except Exception as e:
             session.rollback()
             raise e
         finally:
             session.close()
+        return user_profile
