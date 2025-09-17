@@ -54,3 +54,15 @@ class SimpleResume(BaseModel):
     file_name: str
     created_at: datetime
     embedding: List[float]
+    
+@config
+class UserPreferences(BaseModel):
+    career_goals: str
+    industries: List[str]
+    target_locations: List[str]
+    current_status: str
+    
+@config
+class UserProfile(BaseModel):
+    user_id: str
+    preferences: UserPreferences
