@@ -1,6 +1,6 @@
 
 import re
-from typing import Tuple
+from typing import Tuple, List
 
 from app.core.models.pydantic_models import Feedback, FeedbackCategory
 
@@ -56,13 +56,48 @@ class DataPrep:
         
         return "\n".join(cleaned)
     
+    def extract_skills(text: str) -> List[str]:
+        """ Extract skills from the document """
+
+        lines = text.split("\n")
+        skills = []
+
+        skill_headers = r"(skills|expertise)"
+        stop_headers = r"(experience|education|projects|summary|objective|work history)"
+
+        skill_pattern = re.compile(rf"(.*\b{skill_headers}\b.*)", flags=re.IGNORECASE)
+        stop_pattern = re.compile(rf"(.*\b{stop_headers}\b.*)", flags=re.IGNORECASE)
+        
+        
+        in_skills = False
+
+        for i, line in enumerate(lines):
+            if in_skills and re.search(stop_pattern, line):
+                in_skills = False
+                continue
+            
+            if re.search(skill_pattern, line) and len(line) <= 40:
+                in_skills = True
+                continue
+
+            if in_skills:
+                parts = [part.lstrip() for part in line.split(',')]
+                parts = [item for item in parts if item is not '']
+                
+                skills += parts
+                
+        return skills
+    
+    def extract_experiences(text:str) -> List[str]:
+        """ Extract experiences from the document """
+        pass
+    
     def highlight_text(text: str, match: str, color: str) -> str:
         """ Highlight text in the document """
         if match not in text:
             return text
         
         return text.replace(match, "<mark class='" + color + "'>" + match + "</mark>")
-    
     
     def prep_output(text: str, feedback: dict) -> Tuple[str, Feedback]:
         """ Prepare output package to be delivered to frontend """
