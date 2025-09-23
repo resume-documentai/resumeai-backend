@@ -1,12 +1,16 @@
 
-import re
+import re, unicodedata
 from typing import Tuple, List
 
-from app.core.models.pydantic_models import Feedback, FeedbackCategory
+from app.validators.resume_gate import looks_like_job_title, looks_like_exp_bullet, looks_like_exp_company
+from app.core.models.pydantic_models import Feedback, FeedbackCategory, Experience
 
 class DataPrep:
     def clean_text(text:str) -> str:
         """ Clean text after being extracted from the file """
+        
+        text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("utf-8", "ignore")
+        
         lines = text.split("\n")
         cleaned = []
         buffer = ""
@@ -14,30 +18,27 @@ class DataPrep:
         bullet_point = re.compile(r"^\s*[\*\+\-\•]\s+")
         sentence_end = re.compile(r"[.:!?…\"\')\]]\s*$")
         possible_headers = re.compile(r"^[A-Z][\w\s,&\-()]{0,40}$")
-        print(lines)
+        non_ascii = re.compile(r"[^\x00-\x7F]")
+
         for i, line in enumerate(lines):
-            print(line, end=" ")
-            
             line = line.strip()
+
             if not line:
                 continue
                 
             if bullet_point.match(line):
-                print("bullet point")
                 if buffer:
                     cleaned.append(buffer.strip())
                 buffer = "*" + line[1:]
                 continue
                 
             if sentence_end.search(line):
-                print("sentence end")
                 buffer += " " + line
                 cleaned.append(buffer.strip())
                 buffer = ""
                 continue
             
             if possible_headers.match(line):
-                print("header")
                 if buffer:
                     cleaned.append(buffer.strip())
                 cleaned.append(line)
@@ -45,7 +46,6 @@ class DataPrep:
                 continue
             
             if not buffer:
-                print("buffer")
                 buffer = line
                 continue
             
@@ -87,10 +87,66 @@ class DataPrep:
                 skills += parts
                 
         return skills
-    
-    def extract_experiences(text:str) -> List[str]:
+
+    def extract_experiences(text:str) -> List[Experience]:
         """ Extract experiences from the document """
-        pass
+        
+        lines = text.split("\n")
+        experience_list = []
+        in_group = False
+        
+        experience_headers = "(experience|work history)"
+        stop_headers = "(education|skills|projects|summary|objective|work history)"
+        experience_pattern = re.compile(rf"(.*({experience_headers}).*)" , flags = re.IGNORECASE)
+        stop_pattern = re.compile(rf"(.*({stop_headers}).*)" , flags = re.IGNORECASE)
+        
+        i,j = 0,0
+        
+        while i < len(lines):
+            line = lines[i]
+            if experience_pattern.match(line):
+                in_group = True
+            elif in_group:
+                # build experience items to be read as JSON
+
+                experience = Experience(
+                    name="",
+                    title="",
+                    info=""
+                )
+                
+                j = i
+                while j < len(lines) and not stop_pattern.match(lines[j]):
+                    line = lines[j]
+                    if looks_like_job_title(line) and not looks_like_exp_bullet(line):
+                        if experience.title:
+                            experience_list.append(experience)
+                            experience = Experience(
+                                name="",
+                                title="",
+                                info=""
+                            )
+                        
+                        if j > i and not looks_like_job_title(lines[j-1]) and not lines[j-1].startswith("*"):
+                            experience.name = lines[j-1]
+                        
+                        experience.title = line
+                    elif looks_like_exp_company(line) and experience.title and not experience.name:
+                        experience.name = line
+                    else:
+                        experience.info += line + "\n"
+                    
+                    j += 1
+                
+                if experience.title:
+                    experience_list.append(experience)
+                
+                in_group = False
+                
+            i = max(j, i+1)
+        
+        
+        return experience_list
     
     def highlight_text(text: str, match: str, color: str) -> str:
         """ Highlight text in the document """

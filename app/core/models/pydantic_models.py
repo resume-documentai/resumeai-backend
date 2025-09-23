@@ -6,6 +6,7 @@ def config(cls):
     cls.model_config = ConfigDict()
     return cls
 
+# Feedback Models
 @config
 class FeedbackCategory(BaseModel):
     score: float
@@ -54,7 +55,8 @@ class SimpleResume(BaseModel):
     file_name: str
     created_at: datetime
     embedding: List[float]
-    
+
+# User Profile Models
 @config
 class UserPreferences(BaseModel):
     career_goals: str
@@ -66,3 +68,10 @@ class UserPreferences(BaseModel):
 class UserProfile(BaseModel):
     user_id: str
     preferences: UserPreferences
+    
+# Resume Models
+@config
+class Experience(BaseModel):
+    name: str
+    title: str
+    info: str
