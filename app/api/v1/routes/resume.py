@@ -15,6 +15,7 @@ from app.services.data_prep import DataPrep
 from app.services.process_llm import ProcessLLM
 from app.services.resume_repository import ResumeRepository
 from app.services.llm_prompts import DOCUMENT_TEMPLATE, BASE_PROMPT
+from app.graphs.resume_analyze_graph import resume_analyze_graph
 
 
 resume_router = APIRouter()
@@ -105,45 +106,40 @@ async def upload_resume(
         
         #Since file_id is a sha256 hash of the file content, we can use it to check if the file already exists
         file_id = file_processing.generate_file_id(file_bytes)
-
-        # Extract information from file
-        txt = file_processing.extract(temp_path, file_ext)    
-        os.remove(temp_path)
-
-        if not txt or txt == "":
-            raise HTTPException(status_code=400, detail="Unsupported file type")
-
-        if user_id:
-            resume = resume_repository.get_resume(file_id)
-            if resume:
-                return {"extracted_text": resume.resume_text, "feedback": resume.feedback.feedback}
-                    
-        document = DOCUMENT_TEMPLATE.format(
-            document=txt,
-            feedback={},
-            chat_history=""
-        )
-
-        llm_feedback = process_llm.process(document, model=model_option, prompt=BASE_PROMPT)
-        embedding = file_processing.generate_embeddings(txt)
         
-        txt, llm_feedback = DataPrep.prep_output(txt, llm_feedback)
+        initial_state = {
+            "file_id": file_id,
+            "file_processing": file_processing,
+            "process_llm": process_llm,
+            "model_option": model_option,
+            "resume_repository": resume_repository,
+            "user_id": user_id,
+            "file_name": original_filename,
+            "file_ext": file_ext,
+            "temp_path": temp_path,
+        }
         
-        resume_repository.save_resume_feedback(
-            user_id=user_id,
-            file_id=file_id,
-            file_name=original_filename,
-            resume_text=txt,
-            feedback=llm_feedback,
-            embedding=embedding
-        )
+        result = resume_analyze_graph.invoke(initial_state)
+
         
-        return {"extracted_text": txt, "feedback": llm_feedback}
+        return {
+            "extracted_text": result["highlighted_text"],
+            "feedback": result["llm_feedback"],
+            "skills": result["skills"],
+            "experiences": result["experiences"]
+            }
     except Exception as e:
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
         raise HTTPException(status_code=500, detail=str(e))
-    
+    finally:
+        try:
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+        except Exception:
+            pass
+        
+
+async def upload_resume_post_validation():
+    pass
     
 @resume_router.post("/similar-resumes")
 async def get_similar_resumes(

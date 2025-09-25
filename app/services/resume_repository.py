@@ -156,7 +156,6 @@ class ResumeRepository:
         finally:
             session.close()
 
-
     def get_resume_embedding(self, file_id: str) -> Optional[List[float]]:
         """Get resume embedding by file_id"""
 
@@ -164,13 +163,13 @@ class ResumeRepository:
         
         try:
             # Get resume by file_id
-            resume = session.query(
-                ResumeEmbedding
+            resume = session.query(Resume).options(
+                joinedload(Resume.embedding)
             ).filter(
-                ResumeEmbedding.id == file_id
+                Resume.file_id == file_id
             ).first()
             
-            return resume.embedding
+            return resume.embedding.embedding
         except Exception as e:
             raise e
         finally:
