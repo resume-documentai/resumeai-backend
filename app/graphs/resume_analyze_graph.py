@@ -26,15 +26,18 @@ Output for validation: text, skills, experiences
 
 """
 class ResumeState(TypedDict, total=False):
+    # Inputs
     file_id: str
     file_ext: str
     temp_path: str
-    file_processing: FileProcessing
-    process_llm: ProcessLLM
     model_option: str
-    resume_repository: ResumeRepository
     user_id: Optional[str]
     file_name: Optional[str]
+    
+    # Dependencies
+    file_processing: FileProcessing
+    process_llm: ProcessLLM
+    resume_repository: ResumeRepository
 
     # Intermediate Outputs
     text: Optional[str]
@@ -131,7 +134,8 @@ def finalize_and_save_node(state):
         user_id=state["user_id"],
         file_id=state["file_id"],
         file_name=state["file_name"],
-        resume_text=state["highlighted_text"],
+        raw_text=state["text"],
+        highlighted_text=state["highlighted_text"],
         feedback=state["llm_feedback"],
         embedding=state["embedding"]
     )    

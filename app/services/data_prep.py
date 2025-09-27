@@ -82,7 +82,7 @@ class DataPrep:
 
             if in_skills:
                 parts = [part.lstrip() for part in line.split(',')]
-                parts = [item for item in parts if item is not '']
+                parts = [item for item in parts if item != '']
                 
                 skills += parts
                 
@@ -156,7 +156,16 @@ class DataPrep:
         return text.replace(match, "<mark class='" + color + "'>" + match + "</mark>")
     
     def prep_output(text: str, feedback: dict) -> Tuple[str, Feedback]:
-        """ Prepare output package to be delivered to frontend """
+        """ 
+        Prepare output package to be delivered to frontend 
+        
+        Args:
+            text (str): The text to be processed.
+            feedback (dict): The feedback to be processed.
+        
+        Returns:
+            Tuple[str, Feedback]: A tuple containing the highlighted text and the feedback.
+        """
         categories = ["structure_organization", "clarity_conciseness", "grammar_spelling", "impact_accomplishments", "ats_readability"]
         html_colors = {
             "structure_organization": "bg-green-300", 

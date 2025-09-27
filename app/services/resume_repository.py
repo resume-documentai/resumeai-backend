@@ -57,7 +57,7 @@ class ResumeRepository:
         session = self.db.get_session()
 
         try:
-            # Get resume by user_id, original_filename, and resume_text
+            # Get resume by file_id
             query = session.query(Resume).options(
                 joinedload(Resume.feedback),
                 joinedload(Resume.chatsession),
@@ -76,7 +76,8 @@ class ResumeRepository:
         user_id: str,
         file_id: str,
         file_name: str,
-        resume_text: str,
+        raw_text: str,
+        highlighted_text: str,
         feedback: Feedback,
         embedding: List[float]
     ) -> str:
@@ -102,7 +103,8 @@ class ResumeRepository:
                 user_id=user_id,
                 file_id=file_id,
                 file_name=file_name,
-                resume_text=resume_text,
+                raw_text=raw_text,
+                highlighted_text=highlighted_text,
                 general_feedback=feedback.general_feedback,
                 overall_score=feedback.overall_score,
                 feedback=feedback_obj,
@@ -183,7 +185,7 @@ class ResumeRepository:
             # Get resume by file_id
             resume = session.query(
                 ChatSession.chat_history,
-                Resume.resume_text,
+                Resume.raw_text,
                 ResumeFeedback.feedback
             ).join(
                 Resume,
@@ -195,7 +197,7 @@ class ResumeRepository:
                 Resume.file_id == file_id
             ).first()
             
-            return list(resume.chat_history), resume.resume_text, resume.feedback
+            return list(resume.chat_history), resume.raw_text, resume.feedback
         except Exception as e:
             raise e
         finally:

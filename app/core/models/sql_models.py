@@ -11,6 +11,8 @@ from pgvector.sqlalchemy import Vector
 Base = declarative_base()
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./resumeai.db")
 
+
+# --- Auth Model ---
 class AuthUser(Base):
     __tablename__ = 'auth_users'
     
@@ -19,14 +21,20 @@ class AuthUser(Base):
     email = Column(String, unique=True, nullable=False)
     password_hash = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=text('CURRENT_TIMESTAMP'))
+    
+    experience_embeddings = relationship("ResumeExperienceEmbeddings", 
+                                       back_populates="user",
+                                       cascade="all, delete-orphan")
 
+# --- User Profile Model ---
 class UserProfile(Base):
     __tablename__ = 'user_profiles'
     
     user_id = Column(UUID(as_uuid=True), ForeignKey('auth_users.user_id'), primary_key=True)
+    skills = Column(JSONB, nullable=True)
     preferences = Column(JSONB, nullable=True)
 
-
+# --- Resume Models ---
 class Resume(Base):
     __tablename__ = 'resumes'
     
@@ -34,7 +42,8 @@ class Resume(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey('auth_users.user_id'), nullable=False)
     file_id = Column(UUID(as_uuid=True), nullable=False)
     file_name = Column(Text, nullable=False)
-    resume_text = Column(Text)
+    raw_text = Column(Text)
+    highlighted_text = Column(Text)
     general_feedback = Column(Text)
     overall_score = Column(Float)
     created_at = Column(DateTime(timezone=True), server_default=text('CURRENT_TIMESTAMP'))
@@ -79,6 +88,7 @@ class ChatSession(Base):
                             cascade="all, delete-orphan",
                             single_parent=True)
     
+# --- Resume Embedding Models ---
 class ResumeEmbedding(Base):
     __tablename__ = 'resume_embeddings'
     
@@ -87,6 +97,27 @@ class ResumeEmbedding(Base):
 
     resume = relationship("Resume",
                             back_populates="embedding",
+                            uselist=False,
+                            cascade="all, delete-orphan",
+                            single_parent=True)
+
+class ResumeExperienceEmbeddings(Base):
+    """ 
+    Resume Experience Embeddings 
+        user_id: a user can have multiple experience embeddings
+        experience_id: id for experience in resume
+        experience_json: experience as parsed by resume
+        embedding: vector embedding of experience
+    """
+    __tablename__ = 'resume_experience_embeddings'
+    
+    experience_id = Column(UUID, primary_key=True)
+    user_id = Column(UUID, ForeignKey('auth_users.user_id', ondelete='CASCADE'))
+    experience_json = Column(JSONB)
+    embedding = Column(Vector(1536))
+
+    user = relationship("AuthUser",
+                            back_populates="experience_embeddings",
                             uselist=False,
                             cascade="all, delete-orphan",
                             single_parent=True)
